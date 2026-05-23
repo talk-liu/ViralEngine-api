@@ -34,4 +34,7 @@ export default () => ({
   captcha: {
     ttl: parseInt(process.env.CAPTCHA_TTL ?? '300', 10),
   },
+  cors: {
+    origins: process.env.CORS_ORIGINS ?? '',
+  },
 });

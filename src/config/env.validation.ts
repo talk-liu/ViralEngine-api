@@ -93,4 +93,8 @@ export class EnvironmentVariables {
   @IsInt()
   @Min(60)
   CAPTCHA_TTL?: number = 300;
+
+  @IsOptional()
+  @IsString()
+  CORS_ORIGINS?: string;
 }

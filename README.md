@@ -81,6 +81,9 @@ OpenAPI JSON：`http://localhost:3000/api/docs-json`
 | `JWT_EXPIRES_IN` | Token 过期时间 | `7d` |
 | `THROTTLE_TTL` | 限流窗口（毫秒） | `60000` |
 | `THROTTLE_LIMIT` | 窗口内最大请求数 | `100` |
+| `CORS_ORIGINS` | 允许跨域来源（逗号分隔）；开发环境另自动放行 `localhost` / `wails.localhost` | 空 |
+
+Wails 等桌面端开发时，来源形如 `http://wails.localhost:34115`，开发模式下无需单独配置即可跨域；生产环境请在 `CORS_ORIGINS` 中写明前端地址。
 
 ## 数据库迁移
 
@@ -106,6 +109,10 @@ npx nest g service modules/user
 ```
 
 在 `modules/user/` 下创建 Entity，TypeORM 会通过 `autoLoadEntities` 自动加载。
+
+## 外部接入文档
+
+- **[用户注册接入文档](docs/register-integration.md)** — 两步注册流程、请求/响应、错误码、多语言调用示例
 
 ## 认证接口
 
