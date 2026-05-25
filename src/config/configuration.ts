@@ -63,6 +63,24 @@ export default () => {
     encryption: {
       key: process.env.ENCRYPTION_KEY,
     },
+    storage: {
+      localPath: process.env.STORAGE_LOCAL_PATH ?? 'storage',
+      publicBaseUrl: process.env.STORAGE_PUBLIC_BASE_URL ?? '',
+      signedUrlTtl: parseInt(process.env.STORAGE_SIGNED_URL_TTL ?? '3600', 10),
+      signedUrlSecret:
+        process.env.STORAGE_SIGNED_URL_SECRET ?? process.env.JWT_SECRET ?? '',
+    },
+    publishDraft: {
+      maxPerUser: parseInt(process.env.DRAFT_MAX_COUNT_PER_USER ?? '100', 10),
+      videoMaxBytes: parseInt(
+        process.env.DRAFT_VIDEO_MAX_BYTES ?? String(4 * 1024 * 1024 * 1024),
+        10,
+      ),
+      coverMaxBytes: parseInt(
+        process.env.DRAFT_COVER_MAX_BYTES ?? String(10 * 1024 * 1024),
+        10,
+      ),
+    },
     oauth: {
       douyin: {
         clientKey: process.env.DOUYIN_CLIENT_KEY ?? '',

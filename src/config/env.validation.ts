@@ -152,4 +152,36 @@ export class EnvironmentVariables {
   @IsOptional()
   @IsString()
   KUAISHOU_REDIRECT_URI?: string;
+
+  @IsOptional()
+  @IsString()
+  STORAGE_LOCAL_PATH?: string;
+
+  @IsOptional()
+  @IsString()
+  STORAGE_PUBLIC_BASE_URL?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(60)
+  STORAGE_SIGNED_URL_TTL?: number;
+
+  @IsOptional()
+  @IsString()
+  STORAGE_SIGNED_URL_SECRET?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  DRAFT_MAX_COUNT_PER_USER?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  DRAFT_VIDEO_MAX_BYTES?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  DRAFT_COVER_MAX_BYTES?: number;
 }
