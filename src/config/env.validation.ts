@@ -98,6 +98,33 @@ export class EnvironmentVariables {
   @IsString()
   CORS_ORIGINS?: string;
 
+  @Transform(({ value }) => value === 'true' || value === true)
+  @IsBoolean()
+  @IsOptional()
+  HTTPS_ENABLED?: boolean;
+
+  @IsOptional()
+  @IsString()
+  HTTPS_HOST?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(65535)
+  HTTPS_PORT?: number;
+
+  @IsOptional()
+  @IsString()
+  OAUTH_CALLBACK_BASE_URL?: string;
+
+  @IsOptional()
+  @IsString()
+  SSL_KEY_PATH?: string;
+
+  @IsOptional()
+  @IsString()
+  SSL_CERT_PATH?: string;
+
   @IsOptional()
   @IsString()
   ENCRYPTION_KEY?: string;
