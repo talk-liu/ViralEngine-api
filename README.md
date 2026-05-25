@@ -112,6 +112,7 @@ npx nest g service modules/user
 
 ## 外部接入文档
 
+- **[矩阵账号管理 API](docs/platform-accounts-api.md)** — 平台绑定、OAuth 流程、网络配置、TypeScript 类型与客户端示例
 - **[用户注册接入文档](docs/register-integration.md)** — 两步注册流程、请求/响应、错误码、多语言调用示例
 
 ## 认证接口

@@ -7,6 +7,7 @@ import { AppConfigModule } from './config/config.module';
 import { DatabaseModule } from './database/database.module';
 import { HealthModule } from './health/health.module';
 import { RedisModule } from './redis/redis.module';
+import { PlatformModule } from './modules/platform/platform.module';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 
 @Module({
@@ -47,6 +48,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
     RedisModule,
     AuthModule,
     HealthModule,
+    PlatformModule,
   ],
   providers: [
     {

@@ -97,4 +97,32 @@ export class EnvironmentVariables {
   @IsOptional()
   @IsString()
   CORS_ORIGINS?: string;
+
+  @IsOptional()
+  @IsString()
+  ENCRYPTION_KEY?: string;
+
+  @IsOptional()
+  @IsString()
+  DOUYIN_CLIENT_KEY?: string;
+
+  @IsOptional()
+  @IsString()
+  DOUYIN_CLIENT_SECRET?: string;
+
+  @IsOptional()
+  @IsString()
+  DOUYIN_REDIRECT_URI?: string;
+
+  @IsOptional()
+  @IsString()
+  KUAISHOU_APP_ID?: string;
+
+  @IsOptional()
+  @IsString()
+  KUAISHOU_APP_SECRET?: string;
+
+  @IsOptional()
+  @IsString()
+  KUAISHOU_REDIRECT_URI?: string;
 }

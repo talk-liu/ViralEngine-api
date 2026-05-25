@@ -37,4 +37,19 @@ export default () => ({
   cors: {
     origins: process.env.CORS_ORIGINS ?? '',
   },
+  encryption: {
+    key: process.env.ENCRYPTION_KEY,
+  },
+  oauth: {
+    douyin: {
+      clientKey: process.env.DOUYIN_CLIENT_KEY ?? '',
+      clientSecret: process.env.DOUYIN_CLIENT_SECRET ?? '',
+      redirectUri: process.env.DOUYIN_REDIRECT_URI ?? '',
+    },
+    kuaishou: {
+      appId: process.env.KUAISHOU_APP_ID ?? '',
+      appSecret: process.env.KUAISHOU_APP_SECRET ?? '',
+      redirectUri: process.env.KUAISHOU_REDIRECT_URI ?? '',
+    },
+  },
 });
