@@ -70,6 +70,11 @@ export default () => {
       signedUrlSecret:
         process.env.STORAGE_SIGNED_URL_SECRET ?? process.env.JWT_SECRET ?? '',
     },
+    mediaAi: {
+      queueKey: process.env.MEDIA_AI_QUEUE_KEY ?? 'media-ai:jobs',
+      workerSecret:
+        process.env.MEDIA_WORKER_SECRET ?? 'change-me-media-worker-secret',
+    },
     publishDraft: {
       maxPerUser: parseInt(process.env.DRAFT_MAX_COUNT_PER_USER ?? '100', 10),
       videoMaxBytes: parseInt(

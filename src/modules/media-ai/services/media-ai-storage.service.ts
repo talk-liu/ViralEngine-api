@@ -10,15 +10,8 @@ import { createReadStream, promises as fs } from 'fs';
 import * as path from 'path';
 import type { Readable } from 'stream';
 
-export interface StoredObjectMeta {
-  storageKey: string;
-  mimeType: string;
-  fileName: string;
-  fileSize: number;
-}
-
 @Injectable()
-export class PublishDraftStorageService implements OnModuleInit {
+export class MediaAiStorageService implements OnModuleInit {
   private localRoot = '';
   private signedUrlTtl = 3600;
   private signedUrlSecret = '';
@@ -38,47 +31,31 @@ export class PublishDraftStorageService implements OnModuleInit {
     const port = this.configService.get<number>('port') ?? 3000;
     this.publicBaseUrl =
       (configuredBase?.replace(/\/$/, '') ||
-        `http://localhost:${port}/api`) + '/publish-draft-assets/content';
+        `http://localhost:${port}/api`) + '/media-ai/assets/content';
 
     await fs.mkdir(this.localRoot, { recursive: true });
   }
 
-  buildStorageKey(
-    userId: string,
-    draftId: string,
-    kind: string,
-    fileName: string,
-  ): string {
-    return path.posix.join(userId, draftId, kind, fileName);
+  buildInputKey(userId: string, jobId: string, fileName: string): string {
+    return path.posix.join(userId, 'media-jobs', jobId, 'input', fileName);
   }
 
-  async saveFile(
-    storageKey: string,
-    buffer: Buffer,
-    mimeType: string,
-    fileName: string,
-  ): Promise<StoredObjectMeta> {
+  buildOutputKey(userId: string, jobId: string, fileName: string): string {
+    return path.posix.join(userId, 'media-jobs', jobId, 'output', fileName);
+  }
+
+  toAbsolutePath(storageKey: string): string {
+    const normalized = path.normalize(storageKey).replace(/^(\.\.(\/|\\|$))+/, '');
+    if (normalized.includes('..')) {
+      throw new UnauthorizedException('非法存储路径');
+    }
+    return path.join(this.localRoot, normalized);
+  }
+
+  async saveFile(storageKey: string, buffer: Buffer): Promise<void> {
     const absolutePath = this.toAbsolutePath(storageKey);
     await fs.mkdir(path.dirname(absolutePath), { recursive: true });
     await fs.writeFile(absolutePath, buffer);
-
-    return {
-      storageKey,
-      mimeType,
-      fileName,
-      fileSize: buffer.length,
-    };
-  }
-
-  async deleteFile(storageKey: string): Promise<void> {
-    const absolutePath = this.toAbsolutePath(storageKey);
-    try {
-      await fs.unlink(absolutePath);
-    } catch (err: unknown) {
-      if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
-        throw err;
-      }
-    }
   }
 
   getSignedUrl(storageKey: string): string {
@@ -126,7 +103,7 @@ export class PublishDraftStorageService implements OnModuleInit {
     return {
       stream: createReadStream(absolutePath),
       mimeType: this.guessMimeType(fileName),
-      fileName: fileName,
+      fileName,
     };
   }
 
@@ -134,14 +111,6 @@ export class PublishDraftStorageService implements OnModuleInit {
     return createHmac('sha256', this.signedUrlSecret)
       .update(`${storageKey}:${expires}`)
       .digest('hex');
-  }
-
-  private toAbsolutePath(storageKey: string): string {
-    const normalized = path.normalize(storageKey).replace(/^(\.\.(\/|\\|$))+/, '');
-    if (normalized.includes('..')) {
-      throw new UnauthorizedException('非法存储路径');
-    }
-    return path.join(this.localRoot, normalized);
   }
 
   private guessMimeType(fileName: string): string {

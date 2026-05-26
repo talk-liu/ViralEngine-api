@@ -184,4 +184,12 @@ export class EnvironmentVariables {
   @IsInt()
   @Min(1)
   DRAFT_COVER_MAX_BYTES?: number;
+
+  @IsOptional()
+  @IsString()
+  MEDIA_AI_QUEUE_KEY?: string;
+
+  @IsOptional()
+  @IsString()
+  MEDIA_WORKER_SECRET?: string;
 }

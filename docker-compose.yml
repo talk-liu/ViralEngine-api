@@ -46,12 +46,43 @@ services:
     environment:
       DB_HOST: mysql
       REDIS_HOST: redis
+    volumes:
+      - storage_data:/app/storage
     depends_on:
       mysql:
         condition: service_healthy
       redis:
         condition: service_healthy
 
+  media-worker:
+    build:
+      context: ./media-worker
+      dockerfile: Dockerfile
+    container_name: viralengine-media-worker
+    restart: unless-stopped
+    ports:
+      - '${MEDIA_WORKER_PORT:-8000}:8000'
+    environment:
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_DB: 0
+      MEDIA_AI_QUEUE_KEY: ${MEDIA_AI_QUEUE_KEY:-media-ai:jobs}
+      MEDIA_WORKER_SECRET: ${MEDIA_WORKER_SECRET:-change-me-media-worker-secret}
+      STORAGE_LOCAL_PATH: /app/storage
+      API_BASE_URL: http://api:3000/api
+      WHISPER_MODEL: ${WHISPER_MODEL:-small}
+      WHISPER_DEVICE: ${WHISPER_DEVICE:-cpu}
+      WHISPER_COMPUTE_TYPE: ${WHISPER_COMPUTE_TYPE:-int8}
+      HF_ENDPOINT: ${HF_ENDPOINT:-https://hf-mirror.com}
+    volumes:
+      - storage_data:/app/storage
+    depends_on:
+      redis:
+        condition: service_healthy
+      api:
+        condition: service_started
+
 volumes:
   mysql_data:
   redis_data:
+  storage_data:

@@ -23,3 +23,12 @@ npm-debug.log*
 .DS_Store
 certs/
 storage/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+*.egg-info/
+.venv/
+venv/
