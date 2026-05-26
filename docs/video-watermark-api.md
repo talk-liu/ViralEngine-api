@@ -47,6 +47,7 @@
 |------|---------------|--------------|
 | 创建加水印任务 | `Bearer <accessToken>` | `multipart/form-data` |
 | 查询任务状态 | `Bearer <accessToken>` | 无（GET） |
+| 删除任务 | `Bearer <accessToken>` | 无（DELETE） |
 | 下载成品视频（签名 URL） | **不需要** JWT | 无（GET） |
 
 Swagger 调试：点击 **Authorize**，填入 `Bearer <token>`。
@@ -335,6 +336,21 @@ a.click();
 
 ---
 
+### 3.4 删除任务（释放存储）
+
+**`DELETE /media-ai/jobs/:jobId`**
+
+前端下载并保存成品视频后调用，立即删除服务端文件并移除任务记录。未调用时，产出在 `completed` 后默认保留 **12 小时**（`MEDIA_JOB_OUTPUT_RETENTION_HOURS`）后自动清理。
+
+### 3.5 文件存储生命周期
+
+| 资源 | 何时删除 |
+|------|----------|
+| 上传的原视频（`input`） | 任务 `completed` / `failed` 后**立即**删除 |
+| 成品视频（`output`） | `DELETE` 任务时立即删除；否则 `completedAt` 起 **12 小时**后自动清理 |
+
+---
+
 ## 4. 水印效果说明（供 UI 参考）
 
 服务端使用 ffmpeg `drawtext`，效果固定为：
@@ -504,6 +520,7 @@ async function pollMediaJob(
 8. **fontSize 传参**：`multipart/form-data` 中建议传数字字符串（如 `"24"`）；服务端全局 `ValidationPipe` 会做类型转换。
 9. **预览**：下载到 `Blob` 后可用 `URL.createObjectURL` 在 `<video>` 中预览；组件卸载时记得 `URL.revokeObjectURL`。
 10. **Worker 依赖**：本地/测试环境需同时启动 API 与 Media Worker（需安装 ffmpeg），否则任务不会推进。
+11. **存储清理**：完成后原视频自动删除；成品默认保留 12 小时，建议下载成功后 `DELETE /media-ai/jobs/:jobId`。
 
 ---
 
@@ -519,6 +536,7 @@ STORAGE_SIGNED_URL_TTL=3600
 # Media Worker
 MEDIA_AI_QUEUE_KEY=media-ai:jobs
 MEDIA_WORKER_SECRET=change-me-media-worker-secret
+MEDIA_JOB_OUTPUT_RETENTION_HOURS=12
 ```
 
 加水印**不依赖** Whisper 模型，但 Worker 容器/主机需安装 **ffmpeg**（Docker 镜像已包含）。
@@ -549,6 +567,7 @@ docker compose up -d
 |------|------|------|------|
 | `POST` | `/media-ai/jobs/watermark` | Bearer | 上传视频，创建加水印任务 |
 | `GET` | `/media-ai/jobs/:jobId` | Bearer | 查询任务状态与下载地址（通用） |
+| `DELETE` | `/media-ai/jobs/:jobId` | Bearer | 删除任务及文件 |
 | `GET` | `/media-ai/assets/content?...` | 签名 | 下载成品视频（由 `outputUrl` 提供） |
 
 ---

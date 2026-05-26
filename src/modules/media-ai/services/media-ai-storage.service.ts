@@ -58,6 +58,37 @@ export class MediaAiStorageService implements OnModuleInit {
     await fs.writeFile(absolutePath, buffer);
   }
 
+  async deleteFile(storageKey: string | null | undefined): Promise<void> {
+    if (!storageKey) {
+      return;
+    }
+    const absolutePath = this.toAbsolutePath(storageKey);
+    try {
+      await fs.unlink(absolutePath);
+    } catch (err: unknown) {
+      if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
+        throw err;
+      }
+    }
+  }
+
+  buildJobDirectory(userId: string, jobId: string): string {
+    return path.posix.join(userId, 'media-jobs', jobId);
+  }
+
+  async removeJobDirectory(userId: string, jobId: string): Promise<void> {
+    const absolutePath = this.toAbsolutePath(
+      this.buildJobDirectory(userId, jobId),
+    );
+    try {
+      await fs.rm(absolutePath, { recursive: true, force: true });
+    } catch (err: unknown) {
+      if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
+        throw err;
+      }
+    }
+  }
+
   getSignedUrl(storageKey: string): string {
     const expires = Math.floor(Date.now() / 1000) + this.signedUrlTtl;
     const signature = this.sign(storageKey, expires);

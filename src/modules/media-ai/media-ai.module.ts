@@ -7,6 +7,7 @@ import { MediaJob } from './entities/media-job.entity';
 import { MediaWorkerGuard } from './guards/media-worker.guard';
 import { MediaAiService } from './services/media-ai.service';
 import { MediaAiStorageService } from './services/media-ai-storage.service';
+import { MediaJobCleanupService } from './services/media-job-cleanup.service';
 import { MediaJobQueueService } from './services/media-job-queue.service';
 
 @Module({
@@ -19,6 +20,7 @@ import { MediaJobQueueService } from './services/media-job-queue.service';
   providers: [
     MediaAiService,
     MediaAiStorageService,
+    MediaJobCleanupService,
     MediaJobQueueService,
     MediaWorkerGuard,
   ],

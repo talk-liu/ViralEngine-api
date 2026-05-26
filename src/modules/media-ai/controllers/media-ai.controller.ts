@@ -1,7 +1,10 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   Post,
   UploadedFile,
@@ -13,6 +16,7 @@ import {
   ApiBearerAuth,
   ApiConsumes,
   ApiCreatedResponse,
+  ApiNoContentResponse,
   ApiOkResponse,
   ApiOperation,
   ApiTags,
@@ -43,6 +47,21 @@ export class MediaAiController {
     @Param('jobId') jobId: string,
   ) {
     return this.mediaAiService.getJob(user.id, jobId);
+  }
+
+  @Delete('jobs/:jobId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({
+    summary: '删除媒体处理任务及文件',
+    description:
+      '前端下载完字幕后可调用，立即释放存储。未调用时，产出文件在任务完成后默认保留 12 小时由服务端自动清理。',
+  })
+  @ApiNoContentResponse()
+  removeJob(
+    @CurrentUser() user: AuthUser,
+    @Param('jobId') jobId: string,
+  ) {
+    return this.mediaAiService.removeJob(user.id, jobId);
   }
 
   @Post('jobs/watermark')

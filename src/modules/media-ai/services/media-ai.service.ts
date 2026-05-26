@@ -112,15 +112,22 @@ export class MediaAiService {
         errorMessage: null,
         completedAt: new Date(),
       });
-      return;
+    } else {
+      await this.jobRepository.update(jobId, {
+        status: MediaJobStatus.FAILED,
+        progress: payload.progress ?? job.progress,
+        errorMessage: payload.errorMessage ?? '处理失败',
+        completedAt: new Date(),
+      });
     }
 
-    await this.jobRepository.update(jobId, {
-      status: MediaJobStatus.FAILED,
-      progress: payload.progress ?? job.progress,
-      errorMessage: payload.errorMessage ?? '处理失败',
-      completedAt: new Date(),
-    });
+    await this.deleteInputArtifact(job);
+  }
+
+  async removeJob(userId: string, jobId: string): Promise<void> {
+    const job = await this.findOwnedJob(userId, jobId);
+    await this.storageService.removeJobDirectory(job.userId, job.id);
+    await this.jobRepository.remove(job);
   }
 
   private async createVideoJob(options: {
@@ -191,5 +198,13 @@ export class MediaAiService {
     if (!VIDEO_MIME_TYPES.has(file.mimetype)) {
       throw new BadRequestException('不支持的视频格式');
     }
+  }
+
+  private async deleteInputArtifact(job: MediaJob): Promise<void> {
+    if (!job.inputKey) {
+      return;
+    }
+    await this.storageService.deleteFile(job.inputKey);
+    await this.jobRepository.update(job.id, { inputKey: null });
   }
 }

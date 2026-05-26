@@ -192,4 +192,9 @@ export class EnvironmentVariables {
   @IsOptional()
   @IsString()
   MEDIA_WORKER_SECRET?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  MEDIA_JOB_OUTPUT_RETENTION_HOURS?: number = 12;
 }

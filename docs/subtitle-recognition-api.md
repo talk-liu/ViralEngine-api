@@ -44,6 +44,7 @@
 |------|---------------|--------------|
 | 创建字幕任务 | `Bearer <accessToken>` | `multipart/form-data` |
 | 查询任务状态 | `Bearer <accessToken>` | 无（GET） |
+| 删除任务 | `Bearer <accessToken>` | 无（DELETE） |
 | 下载字幕文件（签名 URL） | **不需要** JWT | 无（GET） |
 
 Swagger 调试：点击 **Authorize**，填入 `Bearer <token>`。
@@ -295,6 +296,42 @@ const subtitleText = await res.text(); // UTF-8 编码的 .srt / .vtt 内容
 
 ---
 
+### 3.4 删除任务（释放存储）
+
+**`DELETE /media-ai/jobs/:jobId`**
+
+前端下载并保存字幕后调用，**立即删除**该任务在服务端的所有文件并移除任务记录。
+
+#### 响应
+
+- `204 No Content`：删除成功
+- `404`：任务不存在或不属于当前用户
+
+#### 推荐前端流程
+
+```typescript
+const subtitleText = await fetch(job.outputUrl).then((r) => r.text());
+// 保存到业务侧后…
+await fetch(`${API_BASE}/media-ai/jobs/${job.id}`, {
+  method: 'DELETE',
+  headers: { Authorization: `Bearer ${token}` },
+});
+```
+
+> 若不调用 DELETE，产出文件在任务 `completed` 后默认保留 **12 小时**（`MEDIA_JOB_OUTPUT_RETENTION_HOURS`），由服务端定时清理；届时 `outputUrl` 将不可用（下载 404）。
+
+---
+
+### 3.5 文件存储生命周期
+
+| 资源 | 何时删除 |
+|------|----------|
+| 上传的原视频（`input`） | 任务进入 `completed` 或 `failed` 后**立即**删除 |
+| 字幕文件（`output`） | 前端 `DELETE` 任务时立即删除；或未删除时，`completedAt` 起 **12 小时**后自动清理 |
+| 任务记录 | 仅 `DELETE` 时移除；自动清理只删文件，保留任务元数据（`outputUrl` 不再返回） |
+
+---
+
 ## 4. 字幕输出格式
 
 ### 4.1 SRT（默认）
@@ -434,6 +471,8 @@ await fetch(`${API_BASE}/media-ai/jobs/subtitle`, {
 6. **大文件**：当前 Media AI 上传**无单独大小限制**（与发布草稿不同）；超大视频会导致识别耗时显著增加，前端建议做文件大小提示与超时处理。
 7. **语言参数**：传 Whisper 支持的 ISO 639-1 代码；传空字符串与不传等效，均为自动检测。
 8. **Worker 依赖**：本地/测试环境需同时启动 API 与 Media Worker，否则任务不会推进。
+9. **存储清理**：识别完成后原视频会自动删除；字幕默认保留 12 小时，**建议**下载成功后调用 `DELETE /media-ai/jobs/:jobId` 立即释放。
+10. **完成后无 inputUrl**：任务结束并删除原视频后，查询接口不再返回 `inputUrl`。
 
 ---
 
@@ -448,6 +487,7 @@ STORAGE_SIGNED_URL_TTL=3600
 # Media Worker
 MEDIA_AI_QUEUE_KEY=media-ai:jobs
 MEDIA_WORKER_SECRET=change-me-media-worker-secret
+MEDIA_JOB_OUTPUT_RETENTION_HOURS=12
 
 # Whisper 模型（国内网络在 media-worker/.env 配置 HF_ENDPOINT，无需翻墙）
 HF_ENDPOINT=https://hf-mirror.com
@@ -497,4 +537,5 @@ WHISPER_LOCAL_ONLY=true
 |------|------|------|------|
 | `POST` | `/media-ai/jobs/subtitle` | Bearer | 上传视频，创建字幕识别任务 |
 | `GET` | `/media-ai/jobs/:jobId` | Bearer | 查询任务状态与下载地址 |
+| `DELETE` | `/media-ai/jobs/:jobId` | Bearer | 删除任务及文件（建议下载字幕后调用） |
 | `GET` | `/media-ai/assets/content?...` | 签名 | 下载字幕文件（由 `outputUrl` 提供） |

@@ -74,6 +74,10 @@ export default () => {
       queueKey: process.env.MEDIA_AI_QUEUE_KEY ?? 'media-ai:jobs',
       workerSecret:
         process.env.MEDIA_WORKER_SECRET ?? 'change-me-media-worker-secret',
+      outputRetentionHours: parseInt(
+        process.env.MEDIA_JOB_OUTPUT_RETENTION_HOURS ?? '12',
+        10,
+      ),
     },
     publishDraft: {
       maxPerUser: parseInt(process.env.DRAFT_MAX_COUNT_PER_USER ?? '100', 10),
