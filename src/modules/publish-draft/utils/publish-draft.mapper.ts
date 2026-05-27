@@ -2,7 +2,10 @@ import { BadRequestException } from '@nestjs/common';
 import { PlatformId } from '../../platform/enums/platform-id.enum';
 import { PublishDraftAsset } from '../entities/publish-draft-asset.entity';
 import { PublishDraft } from '../entities/publish-draft.entity';
-import type { PublishDraftPayload } from '../types/publish-draft-payload.type';
+import type {
+  PublishDraftPayload,
+  PublishDraftPayloadItem,
+} from '../types/publish-draft-payload.type';
 
 const VIDEO_LOCAL_PATH_MAX_LENGTH = 4096;
 const CONTROL_CHAR_PATTERN = /[\x00-\x1f\x7f]/;
@@ -93,13 +96,11 @@ export function pickCoverPreviewAsset(
   )[0];
 }
 
-export function normalizePayload(
-  payload: PublishDraftPayload,
-): PublishDraftPayload {
+export function normalizePlatformOverrides(
+  overrides: PublishDraftPayload['platformOverrides'] | undefined,
+): PublishDraftPayload['platformOverrides'] {
   const platformOverrides: PublishDraftPayload['platformOverrides'] = {};
-  for (const [platformId, override] of Object.entries(
-    payload.platformOverrides ?? {},
-  )) {
+  for (const [platformId, override] of Object.entries(overrides ?? {})) {
     if (!override) {
       continue;
     }
@@ -108,14 +109,45 @@ export function normalizePayload(
       cartItems: override.cartItems ?? [],
     };
   }
+  return platformOverrides;
+}
 
+function normalizePayloadItem(
+  item: PublishDraftPayloadItem,
+): PublishDraftPayloadItem {
   return {
+    clientId: item.clientId?.trim() ?? '',
+    videoFileName: item.videoFileName?.trim() || null,
+    videoLocalPath: normalizeVideoLocalPath(item.videoLocalPath),
+    title: item.title ?? '',
+    description: item.description ?? '',
+    topics: item.topics ?? [],
+    tags: item.tags ?? [],
+    scheduleAt: item.scheduleAt ?? '',
+    showSchedule: item.showSchedule ?? false,
+    platformOverrides: normalizePlatformOverrides(item.platformOverrides),
+    accountIds: [...new Set(item.accountIds ?? [])],
+  };
+}
+
+export function normalizePayload(
+  payload: PublishDraftPayload,
+): PublishDraftPayload {
+  const accountIds = [...new Set(payload.accountIds ?? [])];
+  const normalized: PublishDraftPayload = {
     title: payload.title ?? '',
     description: payload.description ?? '',
     topics: payload.topics ?? [],
     tags: payload.tags ?? [],
     scheduleAt: payload.scheduleAt ?? '',
     showSchedule: payload.showSchedule ?? false,
-    platformOverrides,
+    platformOverrides: normalizePlatformOverrides(payload.platformOverrides),
+    accountIds,
   };
+
+  if (Array.isArray(payload.items) && payload.items.length > 0) {
+    normalized.items = payload.items.map(normalizePayloadItem);
+  }
+
+  return normalized;
 }

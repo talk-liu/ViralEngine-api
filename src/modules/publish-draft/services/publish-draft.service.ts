@@ -9,6 +9,8 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Like, Repository } from 'typeorm';
+import { PlatformAccount } from '../../platform/entities/platform-account.entity';
+import { BindStatus } from '../../platform/enums/bind-status.enum';
 import { PlatformId } from '../../platform/enums/platform-id.enum';
 import { SavePublishDraftDto } from '../dto/save-publish-draft.dto';
 import { ListPublishDraftsQueryDto } from '../dto/list-publish-drafts-query.dto';
@@ -57,6 +59,8 @@ export class PublishDraftService {
     private readonly draftRepository: Repository<PublishDraft>,
     @InjectRepository(PublishDraftAsset)
     private readonly assetRepository: Repository<PublishDraftAsset>,
+    @InjectRepository(PlatformAccount)
+    private readonly accountRepository: Repository<PlatformAccount>,
     private readonly storageService: PublishDraftStorageService,
     private readonly configService: ConfigService,
   ) {
@@ -140,6 +144,7 @@ export class PublishDraftService {
     const payload = normalizePayload(
       dto.payload as unknown as PublishDraftPayload,
     );
+    await this.validateAccountIds(userId, this.collectAccountIds(payload));
     const videoFileName = dto.videoFileName?.trim() || null;
     const videoLocalPath = normalizeVideoLocalPath(dto.videoLocalPath);
 
@@ -164,6 +169,7 @@ export class PublishDraftService {
     const payload = normalizePayload(
       dto.payload as unknown as PublishDraftPayload,
     );
+    await this.validateAccountIds(userId, this.collectAccountIds(payload));
     const videoFileName =
       dto.videoFileName !== undefined
         ? dto.videoFileName?.trim() || null
@@ -413,38 +419,111 @@ export class PublishDraftService {
     }
   }
 
-  private validatePayload(payload: PublishDraftPayloadDto) {
-    if (payload.showSchedule) {
-      if (!payload.scheduleAt?.trim()) {
-        throw new UnprocessableEntityException(
-          '开启定时发布时必须设置 scheduleAt',
-        );
-      }
-      const at = new Date(payload.scheduleAt);
-      if (Number.isNaN(at.getTime())) {
-        throw new UnprocessableEntityException(
-          'scheduleAt 必须是有效的 ISO 8601 时间',
-        );
-      }
-      if (at <= new Date()) {
-        throw new UnprocessableEntityException(
-          '定时发布时间必须是将来时间',
-        );
-      }
+  private async validateAccountIds(userId: string, accountIds: string[]) {
+    if (accountIds.length === 0) {
+      return;
     }
 
+    const accounts = await this.accountRepository.find({
+      where: { id: In(accountIds), userId },
+    });
+    const accountById = new Map(accounts.map((account) => [account.id, account]));
+
+    const invalidIds = accountIds.filter((id) => !accountById.has(id));
+    if (invalidIds.length > 0) {
+      throw new UnprocessableEntityException(
+        `无效的发布账号 ID: ${invalidIds.join(', ')}`,
+      );
+    }
+
+    const notBoundIds = accountIds.filter(
+      (id) => accountById.get(id)?.status !== BindStatus.BOUND,
+    );
+    if (notBoundIds.length > 0) {
+      throw new UnprocessableEntityException(
+        `以下发布账号未绑定或不可用: ${notBoundIds.join(', ')}`,
+      );
+    }
+  }
+
+  private collectAccountIds(payload: PublishDraftPayload): string[] {
+    const ids = [...payload.accountIds];
+    for (const item of payload.items ?? []) {
+      ids.push(...item.accountIds);
+    }
+    return [...new Set(ids)];
+  }
+
+  private validatePayload(payload: PublishDraftPayloadDto) {
+    this.validateSchedule(payload.showSchedule, payload.scheduleAt);
+    this.validatePlatformOverrides(payload.platformOverrides);
+
+    if (!payload.items?.length) {
+      return;
+    }
+
+    const clientIds = new Set<string>();
+    for (const [index, item] of payload.items.entries()) {
+      const label = `items[${index}]`;
+      if (!item.clientId?.trim()) {
+        throw new UnprocessableEntityException(`${label} 缺少 clientId`);
+      }
+      if (clientIds.has(item.clientId)) {
+        throw new UnprocessableEntityException(
+          `items 中存在重复的 clientId: ${item.clientId}`,
+        );
+      }
+      clientIds.add(item.clientId);
+
+      this.validateSchedule(item.showSchedule, item.scheduleAt, label);
+      this.validatePlatformOverrides(item.platformOverrides, label);
+    }
+  }
+
+  private validateSchedule(
+    showSchedule: boolean,
+    scheduleAt: string,
+    label = 'payload',
+  ) {
+    if (!showSchedule) {
+      return;
+    }
+    if (!scheduleAt?.trim()) {
+      throw new UnprocessableEntityException(
+        `${label} 开启定时发布时必须设置 scheduleAt`,
+      );
+    }
+    const at = new Date(scheduleAt);
+    if (Number.isNaN(at.getTime())) {
+      throw new UnprocessableEntityException(
+        `${label} scheduleAt 必须是有效的 ISO 8601 时间`,
+      );
+    }
+    if (at <= new Date()) {
+      throw new UnprocessableEntityException(
+        `${label} 定时发布时间必须是将来时间`,
+      );
+    }
+  }
+
+  private validatePlatformOverrides(
+    platformOverrides: PublishDraftPayloadDto['platformOverrides'],
+    label = 'payload',
+  ) {
     for (const [platformId, override] of Object.entries(
-      payload.platformOverrides ?? {},
+      platformOverrides ?? {},
     )) {
       if (!PLATFORM_IDS.has(platformId)) {
-        throw new UnprocessableEntityException(`无效的平台 ID: ${platformId}`);
+        throw new UnprocessableEntityException(
+          `${label} 无效的平台 ID: ${platformId}`,
+        );
       }
       if (!override) {
         continue;
       }
       if (override.customized && override.title.length > 80) {
         throw new UnprocessableEntityException(
-          `${platformId} 标题不能超过 80 字`,
+          `${label} ${platformId} 标题不能超过 80 字`,
         );
       }
     }

@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { PlatformAccount } from '../platform/entities/platform-account.entity';
 import { PublishDraftAssetsController } from './controllers/publish-draft-assets.controller';
 import { PublishDraftsController } from './controllers/publish-drafts.controller';
 import { PublishDraftAsset } from './entities/publish-draft-asset.entity';
@@ -8,7 +9,9 @@ import { PublishDraftStorageService } from './services/publish-draft-storage.ser
 import { PublishDraftService } from './services/publish-draft.service';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([PublishDraft, PublishDraftAsset])],
+  imports: [
+    TypeOrmModule.forFeature([PublishDraft, PublishDraftAsset, PlatformAccount]),
+  ],
   controllers: [PublishDraftsController, PublishDraftAssetsController],
   providers: [PublishDraftService, PublishDraftStorageService],
   exports: [PublishDraftService],
