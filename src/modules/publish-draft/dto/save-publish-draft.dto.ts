@@ -10,6 +10,16 @@ export class SavePublishDraftDto {
   @MaxLength(512)
   videoFileName?: string | null;
 
+  @ApiPropertyOptional({
+    example: 'D:\\Videos\\summer.mp4',
+    nullable: true,
+    description: '客户端本机视频绝对路径（元数据，服务端不读取文件）',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(4096)
+  videoLocalPath?: string | null;
+
   @ApiProperty({ type: PublishDraftPayloadDto })
   @ValidateNested()
   @Type(() => PublishDraftPayloadDto)

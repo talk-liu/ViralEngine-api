@@ -1,7 +1,42 @@
+import { BadRequestException } from '@nestjs/common';
 import { PlatformId } from '../../platform/enums/platform-id.enum';
 import { PublishDraftAsset } from '../entities/publish-draft-asset.entity';
 import { PublishDraft } from '../entities/publish-draft.entity';
 import type { PublishDraftPayload } from '../types/publish-draft-payload.type';
+
+const VIDEO_LOCAL_PATH_MAX_LENGTH = 4096;
+const CONTROL_CHAR_PATTERN = /[\x00-\x1f\x7f]/;
+
+export function normalizeVideoLocalPath(
+  value: string | null | undefined,
+): string | null {
+  if (value === undefined || value === null) {
+    return null;
+  }
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
+  if (trimmed.length > VIDEO_LOCAL_PATH_MAX_LENGTH) {
+    throw new BadRequestException(
+      `videoLocalPath 长度不能超过 ${VIDEO_LOCAL_PATH_MAX_LENGTH}`,
+    );
+  }
+  if (CONTROL_CHAR_PATTERN.test(trimmed)) {
+    throw new BadRequestException('videoLocalPath 包含非法控制字符');
+  }
+  return trimmed;
+}
+
+export function hasDraftVideo(
+  draft: Pick<PublishDraft, 'videoAssetId' | 'videoLocalPath'>,
+): boolean {
+  if (draft.videoAssetId) {
+    return true;
+  }
+  const path = draft.videoLocalPath?.trim();
+  return Boolean(path);
+}
 
 export function resolveListTitle(
   payload: PublishDraftPayload,

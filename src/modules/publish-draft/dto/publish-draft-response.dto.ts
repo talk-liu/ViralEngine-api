@@ -57,6 +57,13 @@ export class PublishDraftDetailDto {
   @ApiProperty({ nullable: true })
   videoUrl: string | null;
 
+  @ApiProperty({
+    nullable: true,
+    example: 'D:\\Videos\\summer.mp4',
+    description: '本机视频绝对路径；仅本地路径时 videoUrl 为 null',
+  })
+  videoLocalPath: string | null;
+
   @ApiProperty({ example: 'draft' })
   status: string;
 

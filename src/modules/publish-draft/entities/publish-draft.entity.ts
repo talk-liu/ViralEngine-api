@@ -34,6 +34,9 @@ export class PublishDraft {
   @Column({ name: 'video_asset_id', type: 'varchar', length: 36, nullable: true })
   videoAssetId: string | null;
 
+  @Column({ name: 'video_local_path', type: 'text', nullable: true })
+  videoLocalPath: string | null;
+
   @Column({ type: 'varchar', length: 16, default: DraftStatus.DRAFT })
   status: DraftStatus;
 

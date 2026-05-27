@@ -21,7 +21,9 @@ import type { PublishDraftPayload } from '../types/publish-draft-payload.type';
 import { PublishDraftStorageService } from './publish-draft-storage.service';
 import {
   buildPlatformCoverUrls,
+  hasDraftVideo,
   normalizePayload,
+  normalizeVideoLocalPath,
   pickCoverPreviewAsset,
   resolveListTitle,
   toIso,
@@ -114,7 +116,7 @@ export class PublishDraftService {
         listTitle: draft.listTitle,
         videoFileName: draft.videoFileName,
         status: draft.status,
-        hasVideo: Boolean(draft.videoAssetId),
+        hasVideo: hasDraftVideo(draft),
         coverPreviewUrl: preview
           ? this.storageService.getSignedUrl(preview.storageKey)
           : undefined,
@@ -139,12 +141,14 @@ export class PublishDraftService {
       dto.payload as unknown as PublishDraftPayload,
     );
     const videoFileName = dto.videoFileName?.trim() || null;
+    const videoLocalPath = normalizeVideoLocalPath(dto.videoLocalPath);
 
     const draft = this.draftRepository.create({
       userId,
       listTitle: resolveListTitle(payload, videoFileName),
       videoFileName,
       videoAssetId: null,
+      videoLocalPath,
       status: DraftStatus.DRAFT,
       payload,
     });
@@ -164,10 +168,15 @@ export class PublishDraftService {
       dto.videoFileName !== undefined
         ? dto.videoFileName?.trim() || null
         : draft.videoFileName;
+    const videoLocalPath =
+      dto.videoLocalPath !== undefined
+        ? normalizeVideoLocalPath(dto.videoLocalPath)
+        : draft.videoLocalPath;
 
     draft.payload = payload;
     draft.listTitle = resolveListTitle(payload, videoFileName);
     draft.videoFileName = videoFileName;
+    draft.videoLocalPath = videoLocalPath;
 
     const saved = await this.draftRepository.save(draft);
     return this.toDetailDto(saved);
@@ -231,6 +240,7 @@ export class PublishDraftService {
     const previousVideoAssetId = draft.videoAssetId;
     draft.videoFileName = fileName;
     draft.videoAssetId = asset.id;
+    draft.videoLocalPath = null;
     await this.draftRepository.save(draft);
 
     if (previousVideoAssetId && previousVideoAssetId !== asset.id) {
@@ -383,6 +393,7 @@ export class PublishDraftService {
       videoFileName: draft.videoFileName,
       videoAssetId: draft.videoAssetId,
       videoUrl: videoAsset ? sign(videoAsset) : null,
+      videoLocalPath: draft.videoLocalPath,
       status: draft.status,
       payload: normalizePayload(draft.payload),
       platformCoverUrls: buildPlatformCoverUrls(coverAssets, sign),
