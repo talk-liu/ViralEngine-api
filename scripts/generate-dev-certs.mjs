@@ -5,31 +5,39 @@ import { join } from 'path';
 const certDir = join(process.cwd(), 'certs');
 const keyPath = join(certDir, 'dev-key.pem');
 const certPath = join(certDir, 'dev-cert.pem');
+const force =
+  process.env.DEV_CERT_FORCE === 'true' || process.argv.includes('--force');
+const lanIp = process.env.DEV_CERT_IP?.trim();
 
-if (existsSync(keyPath) && existsSync(certPath)) {
+if (existsSync(keyPath) && existsSync(certPath) && !force) {
   console.log('开发证书已存在，跳过生成。');
+  console.log('如需重新生成（例如加入局域网 IP），请设置 DEV_CERT_FORCE=true');
   process.exit(0);
 }
 
 mkdirSync(certDir, { recursive: true });
 
-const pems = await selfsigned.generate(
-  [{ name: 'commonName', value: '127.0.0.1' }],
-  {
-    days: 825,
-    keySize: 2048,
-    algorithm: 'sha256',
-    extensions: [
-      {
-        name: 'subjectAltName',
-        altNames: [
-          { type: 2, value: 'localhost' },
-          { type: 7, ip: '127.0.0.1' },
-        ],
-      },
-    ],
-  },
-);
+const altNames = [
+  { type: 2, value: 'localhost' },
+  { type: 7, ip: '127.0.0.1' },
+];
+if (lanIp) {
+  altNames.push({ type: 7, ip: lanIp });
+}
+
+const commonName = lanIp || '127.0.0.1';
+
+const pems = await selfsigned.generate([{ name: 'commonName', value: commonName }], {
+  days: 825,
+  keySize: 2048,
+  algorithm: 'sha256',
+  extensions: [
+    {
+      name: 'subjectAltName',
+      altNames,
+    },
+  ],
+});
 
 writeFileSync(keyPath, pems.private, 'utf8');
 writeFileSync(certPath, pems.cert, 'utf8');
@@ -37,4 +45,7 @@ writeFileSync(certPath, pems.cert, 'utf8');
 console.log('开发 HTTPS 证书已生成。');
 console.log(`  ${keyPath}`);
 console.log(`  ${certPath}`);
-console.log('OAuth 回调: https://127.0.0.1:3443/api/oauth/douyin/callback');
+if (lanIp) {
+  console.log(`OAuth 回调（局域网）: https://${lanIp}:3443/api/oauth/douyin/callback`);
+}
+console.log('OAuth 回调（本机）: https://127.0.0.1:3443/api/oauth/douyin/callback');
