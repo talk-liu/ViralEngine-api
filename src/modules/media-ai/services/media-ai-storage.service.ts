@@ -44,6 +44,34 @@ export class MediaAiStorageService implements OnModuleInit {
     return path.posix.join(userId, 'media-jobs', jobId, 'output', fileName);
   }
 
+  buildClipOutputKey(
+    userId: string,
+    jobId: string,
+    clipId: string,
+    fileName: string,
+  ): string {
+    return path.posix.join(
+      userId,
+      'media-jobs',
+      jobId,
+      'output',
+      'clips',
+      clipId,
+      fileName,
+    );
+  }
+
+  async readJsonFile<T>(storageKey: string): Promise<T> {
+    const absolutePath = this.toAbsolutePath(storageKey);
+    try {
+      await fs.access(absolutePath);
+    } catch {
+      throw new NotFoundException('文件不存在');
+    }
+    const raw = await fs.readFile(absolutePath, 'utf-8');
+    return JSON.parse(raw) as T;
+  }
+
   toAbsolutePath(storageKey: string): string {
     const normalized = path.normalize(storageKey).replace(/^(\.\.(\/|\\|$))+/, '');
     if (normalized.includes('..')) {
@@ -157,6 +185,7 @@ export class MediaAiStorageService implements OnModuleInit {
       '.gif': 'image/gif',
       '.srt': 'application/x-subrip',
       '.vtt': 'text/vtt',
+      '.json': 'application/json',
     };
     return map[ext] ?? 'application/octet-stream';
   }

@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { LiveSliceManifestDto } from './live-slice-manifest.dto';
 
 export class MediaJobResponseDto {
   @ApiProperty()
@@ -33,4 +34,10 @@ export class MediaJobResponseDto {
 
   @ApiPropertyOptional()
   completedAt?: string;
+
+  @ApiPropertyOptional({
+    type: LiveSliceManifestDto,
+    description: 'live_slice 任务完成后的切片清单（含签名下载 URL）',
+  })
+  manifest?: LiveSliceManifestDto;
 }

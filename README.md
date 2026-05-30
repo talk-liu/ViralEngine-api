@@ -112,8 +112,11 @@ npx nest g service modules/user
 
 ## 外部接入文档
 
-- **[矩阵账号管理 API](docs/platform-accounts-api.md)** — 平台绑定、OAuth 流程、网络配置、TypeScript 类型与客户端示例
-- **[用户注册接入文档](docs/register-integration.md)** — 两步注册流程、请求/响应、错误码、多语言调用示例
+- **[矩阵账号管理 API](docs/platform-accounts-api.md)** — 平台绑定、OAuth 流程、网络配置
+- **[用户注册接入文档](docs/register-integration.md)** — 两步注册流程、错误码
+- **[视频字幕识别 API](docs/subtitle-recognition-api.md)** — Whisper 异步字幕生成
+- **[视频加水印 API](docs/video-watermark-api.md)** — ffmpeg 文字水印
+- **[直播切片 API](docs/live-slice-api.md)** — FunASR + LLM 卖货高光切片
 
 ## 认证接口
 

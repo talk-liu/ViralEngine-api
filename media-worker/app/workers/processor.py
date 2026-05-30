@@ -4,11 +4,13 @@ from app.services.storage import StorageService
 from app.workers.subtitle import extract_subtitles
 from app.workers.text2image import generate_image
 from app.workers.watermark import apply_watermark
+from app.workers.live_slice import process_live_slice
 
 
 class JobProcessor:
-    def __init__(self, storage: StorageService) -> None:
+    def __init__(self, storage: StorageService, callback=None) -> None:
         self.storage = storage
+        self.callback = callback
 
     async def process(self, payload: MediaJobPayload) -> None:
         if payload.type == "watermark":
@@ -19,6 +21,9 @@ class JobProcessor:
             return
         if payload.type == "text2image":
             await self._process_text2image(payload)
+            return
+        if payload.type == "live_slice":
+            await self._process_live_slice(payload)
             return
         raise ValueError(f"不支持的任务类型: {payload.type}")
 
@@ -61,4 +66,28 @@ class JobProcessor:
             prompt=str(params.get("prompt", "")),
             width=int(params.get("width", 1024)),
             height=int(params.get("height", 1024)),
+        )
+
+    async def _process_live_slice(self, payload: MediaJobPayload) -> None:
+        input_path = self.storage.resolve(payload.inputKey)
+        output_path = self.storage.ensure_parent(payload.outputKey)
+        callback = self.callback
+
+        def progress_callback(progress: int) -> None:
+            if callback is None:
+                return
+            try:
+                callback.report_progress_sync(payload.jobId, progress)
+            except Exception:
+                pass
+
+        await asyncio.to_thread(
+            process_live_slice,
+            input_path,
+            output_path,
+            storage=self.storage,
+            user_id=payload.userId,
+            job_id=payload.jobId,
+            params=payload.params,
+            progress_callback=progress_callback,
         )

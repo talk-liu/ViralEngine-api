@@ -74,6 +74,11 @@ services:
       WHISPER_DEVICE: ${WHISPER_DEVICE:-cpu}
       WHISPER_COMPUTE_TYPE: ${WHISPER_COMPUTE_TYPE:-int8}
       HF_ENDPOINT: ${HF_ENDPOINT:-https://hf-mirror.com}
+      ASR_ENGINE: ${ASR_ENGINE:-auto}
+      FUNASR_DEVICE: ${FUNASR_DEVICE:-cpu}
+      LLM_API_BASE: ${LLM_API_BASE:-https://dashscope.aliyuncs.com/compatible-mode/v1}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_MODEL: ${LLM_MODEL:-qwen-plus}
     volumes:
       - storage_data:/app/storage
     depends_on:

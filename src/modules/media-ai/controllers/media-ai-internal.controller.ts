@@ -10,6 +10,7 @@ import {
 } from '@nestjs/common';
 import { ApiHeader, ApiNoContentResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CompleteMediaJobDto } from '../dto/complete-media-job.dto';
+import { UpdateMediaJobProgressDto } from '../dto/update-media-job-progress.dto';
 import { MediaWorkerGuard } from '../guards/media-worker.guard';
 import { MediaAiService } from '../services/media-ai.service';
 
@@ -26,6 +27,17 @@ export class MediaAiInternalController {
   @ApiNoContentResponse()
   markProcessing(@Param('jobId') jobId: string) {
     return this.mediaAiService.markProcessing(jobId);
+  }
+
+  @Patch('jobs/:jobId/progress')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Worker：上报任务进度' })
+  @ApiNoContentResponse()
+  updateProgress(
+    @Param('jobId') jobId: string,
+    @Body() dto: UpdateMediaJobProgressDto,
+  ) {
+    return this.mediaAiService.updateProgress(jobId, dto.progress);
   }
 
   @Post('jobs/:jobId/complete')

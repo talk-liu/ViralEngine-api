@@ -41,6 +41,23 @@ class Settings(BaseSettings):
     hf_endpoint: str | None = Field(default=None, alias="HF_ENDPOINT")
     hf_home: str | None = Field(default=None, alias="HF_HOME")
 
+    # ASR：funasr | whisper | auto（先 FunASR，失败回退 Whisper）
+    asr_engine: str = Field(default="auto", alias="ASR_ENGINE")
+    funasr_model: str = Field(default="paraformer-zh", alias="FUNASR_MODEL")
+    funasr_vad_model: str = Field(default="fsmn-vad", alias="FUNASR_VAD_MODEL")
+    funasr_punc_model: str = Field(default="ct-punc", alias="FUNASR_PUNC_MODEL")
+    funasr_device: str = Field(default="cpu", alias="FUNASR_DEVICE")
+    funasr_batch_size_s: int = Field(default=300, alias="FUNASR_BATCH_SIZE_S")
+
+    # LLM 高光识别（OpenAI 兼容接口，支持通义/DeepSeek 等）
+    llm_api_base: str = Field(
+        default="https://dashscope.aliyuncs.com/compatible-mode/v1",
+        alias="LLM_API_BASE",
+    )
+    llm_api_key: str = Field(default="", alias="LLM_API_KEY")
+    llm_model: str = Field(default="qwen-plus", alias="LLM_MODEL")
+    llm_timeout: float = Field(default=120.0, alias="LLM_TIMEOUT")
+
     @field_validator("storage_local_path")
     @classmethod
     def resolve_storage_local_path(cls, value: str) -> str:

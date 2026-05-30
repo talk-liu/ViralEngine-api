@@ -7,8 +7,10 @@ import { InjectRepository } from '@nestjs/typeorm';
 import * as path from 'path';
 import { Repository } from 'typeorm';
 import { buildUniqueFileName } from '../../publish-draft/utils/upload-filename.util';
+import { CreateLiveSliceJobDto } from '../dto/create-live-slice-job.dto';
 import { CreateSubtitleJobDto } from '../dto/create-subtitle-job.dto';
 import { CreateWatermarkJobDto } from '../dto/create-watermark-job.dto';
+import type { LiveSliceManifestDto } from '../dto/live-slice-manifest.dto';
 import type { MediaJobResponseDto } from '../dto/media-job-response.dto';
 import { MediaJob } from '../entities/media-job.entity';
 import { MediaJobStatus } from '../enums/media-job-status.enum';
@@ -24,6 +26,35 @@ const VIDEO_MIME_TYPES = new Set([
   'video/x-msvideo',
 ]);
 
+interface LiveSliceCartItemParam {
+  id?: string;
+  title: string;
+  link?: string;
+}
+
+interface RawLiveSliceManifest {
+  version: number;
+  sourceDurationSec: number;
+  asrEngine: string;
+  clips: Array<{
+    id: string;
+    startSec: number;
+    endSec: number;
+    durationSec: number;
+    score: number;
+    reason: string;
+    productName?: string;
+    productId?: string;
+    title: string;
+    description?: string;
+    topics?: string[];
+    tags?: string[];
+    videoKey?: string;
+    coverKey?: string;
+    subtitleKey?: string;
+  }>;
+}
+
 @Injectable()
 export class MediaAiService {
   constructor(
@@ -35,7 +66,15 @@ export class MediaAiService {
 
   async getJob(userId: string, jobId: string): Promise<MediaJobResponseDto> {
     const job = await this.findOwnedJob(userId, jobId);
-    return toMediaJobResponse(job, (key) => this.storageService.getSignedUrl(key));
+    const signedUrl = (key: string) => this.storageService.getSignedUrl(key);
+    const manifest =
+      job.type === MediaJobType.LIVE_SLICE &&
+      job.status === MediaJobStatus.COMPLETED &&
+      job.outputKey
+        ? await this.loadLiveSliceManifest(job.outputKey, signedUrl)
+        : undefined;
+
+    return toMediaJobResponse(job, signedUrl, manifest);
   }
 
   async createWatermarkJob(
@@ -80,6 +119,50 @@ export class MediaAiService {
       },
       outputFileName: `subtitles.${format}`,
     });
+  }
+
+  async createLiveSliceJob(
+    userId: string,
+    file: Express.Multer.File,
+    dto: CreateLiveSliceJobDto,
+  ): Promise<MediaJobResponseDto> {
+    const minDuration = dto.minDuration ?? 15;
+    const maxDuration = dto.maxDuration ?? 60;
+    if (minDuration > maxDuration) {
+      throw new BadRequestException('minDuration 不能大于 maxDuration');
+    }
+
+    const cartItems = this.parseLiveSliceCartItems(dto.cartItems);
+
+    return this.createVideoJob({
+      userId,
+      file,
+      type: MediaJobType.LIVE_SLICE,
+      params: {
+        minDuration,
+        maxDuration,
+        maxClips: dto.maxClips ?? 20,
+        aspectRatio: dto.aspectRatio ?? '9:16',
+        language: dto.language,
+        cartItems,
+        highlightPrompt: dto.highlightPrompt,
+      },
+      outputFileName: 'manifest.json',
+    });
+  }
+
+  async updateProgress(jobId: string, progress: number): Promise<void> {
+    const job = await this.jobRepository.findOne({ where: { id: jobId } });
+    if (!job) {
+      throw new NotFoundException('任务不存在');
+    }
+    if (
+      job.status === MediaJobStatus.COMPLETED ||
+      job.status === MediaJobStatus.FAILED
+    ) {
+      return;
+    }
+    await this.jobRepository.update(jobId, { progress });
   }
 
   async markProcessing(jobId: string): Promise<void> {
@@ -133,7 +216,7 @@ export class MediaAiService {
   private async createVideoJob(options: {
     userId: string;
     file: Express.Multer.File;
-    type: MediaJobType.WATERMARK | MediaJobType.SUBTITLE;
+    type: MediaJobType.WATERMARK | MediaJobType.SUBTITLE | MediaJobType.LIVE_SLICE;
     params: Record<string, unknown>;
     outputFileName: string;
   }): Promise<MediaJobResponseDto> {
@@ -206,5 +289,68 @@ export class MediaAiService {
     }
     await this.storageService.deleteFile(job.inputKey);
     await this.jobRepository.update(job.id, { inputKey: null });
+  }
+
+  private parseLiveSliceCartItems(
+    raw?: string,
+  ): LiveSliceCartItemParam[] {
+    if (!raw?.trim()) {
+      return [];
+    }
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      throw new BadRequestException('cartItems 必须是合法 JSON 数组');
+    }
+    if (!Array.isArray(parsed)) {
+      throw new BadRequestException('cartItems 必须是 JSON 数组');
+    }
+    return parsed.map((item, index) => {
+      if (!item || typeof item !== 'object') {
+        throw new BadRequestException(`cartItems[${index}] 格式无效`);
+      }
+      const record = item as Record<string, unknown>;
+      const title = record.title;
+      if (typeof title !== 'string' || !title.trim()) {
+        throw new BadRequestException(`cartItems[${index}].title 必填`);
+      }
+      return {
+        id: typeof record.id === 'string' ? record.id : undefined,
+        title: title.trim(),
+        link: typeof record.link === 'string' ? record.link : undefined,
+      };
+    });
+  }
+
+  private async loadLiveSliceManifest(
+    outputKey: string,
+    signedUrl: (key: string) => string,
+  ): Promise<LiveSliceManifestDto> {
+    const raw = await this.storageService.readJsonFile<RawLiveSliceManifest>(
+      outputKey,
+    );
+    return {
+      version: raw.version,
+      sourceDurationSec: raw.sourceDurationSec,
+      asrEngine: raw.asrEngine,
+      clips: (raw.clips ?? []).map((clip) => ({
+        id: clip.id,
+        startSec: clip.startSec,
+        endSec: clip.endSec,
+        durationSec: clip.durationSec,
+        score: clip.score,
+        reason: clip.reason,
+        productName: clip.productName,
+        productId: clip.productId,
+        title: clip.title,
+        description: clip.description,
+        topics: clip.topics ?? [],
+        tags: clip.tags ?? [],
+        videoUrl: clip.videoKey ? signedUrl(clip.videoKey) : undefined,
+        coverUrl: clip.coverKey ? signedUrl(clip.coverKey) : undefined,
+        subtitleUrl: clip.subtitleKey ? signedUrl(clip.subtitleKey) : undefined,
+      })),
+    };
   }
 }

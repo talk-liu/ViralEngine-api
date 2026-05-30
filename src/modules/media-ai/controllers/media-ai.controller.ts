@@ -26,6 +26,7 @@ import { ApiErrorResponseDto } from '../../../common/dto/api-error.dto';
 import { CurrentUser } from '../../../auth/decorators/current-user.decorator';
 import type { AuthUser } from '../../../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
+import { CreateLiveSliceJobDto } from '../dto/create-live-slice-job.dto';
 import { CreateSubtitleJobDto } from '../dto/create-subtitle-job.dto';
 import { CreateWatermarkJobDto } from '../dto/create-watermark-job.dto';
 import { MediaJobResponseDto } from '../dto/media-job-response.dto';
@@ -88,5 +89,22 @@ export class MediaAiController {
     @Body() dto: CreateSubtitleJobDto,
   ) {
     return this.mediaAiService.createSubtitleJob(user.id, file, dto);
+  }
+
+  @Post('jobs/live-slice')
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({
+    summary: '创建直播切片任务',
+    description:
+      '上传长直播录像，自动识别卖货高光片段并输出竖屏切片、封面与字幕。完成后通过 manifest 获取各切片下载地址。',
+  })
+  @ApiCreatedResponse({ type: MediaJobResponseDto })
+  createLiveSliceJob(
+    @CurrentUser() user: AuthUser,
+    @UploadedFile() file: Express.Multer.File,
+    @Body() dto: CreateLiveSliceJobDto,
+  ) {
+    return this.mediaAiService.createLiveSliceJob(user.id, file, dto);
   }
 }

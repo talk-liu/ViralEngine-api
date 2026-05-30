@@ -3,6 +3,7 @@ import json
 import logging
 
 import redis.asyncio as redis
+from redis.exceptions import TimeoutError as RedisTimeoutError
 
 from app.config import settings
 from app.models import MediaJobPayload
@@ -15,15 +16,19 @@ logger = logging.getLogger(__name__)
 
 class QueueConsumer:
     def __init__(self) -> None:
+        # BRPOP 属于阻塞命令，socket_timeout 必须为空或大于 poll 超时，否则会误报 TimeoutError
+        poll_timeout = max(settings.worker_poll_timeout, 1)
         self.redis = redis.Redis(
             host=settings.redis_host,
             port=settings.redis_port,
             password=settings.redis_password or None,
             db=settings.redis_db,
             decode_responses=True,
+            socket_connect_timeout=5,
+            socket_timeout=poll_timeout + 5,
         )
         self.callback = CallbackService()
-        self.processor = JobProcessor(StorageService())
+        self.processor = JobProcessor(StorageService(), self.callback)
         self._running = False
 
     async def start(self) -> None:
@@ -42,6 +47,9 @@ class QueueConsumer:
                 await self._handle_job(payload)
             except asyncio.CancelledError:
                 break
+            except RedisTimeoutError:
+                # 队列空闲时 BRPOP 超时返回，属于正常轮询
+                continue
             except Exception:
                 logger.exception("Queue consumer loop error")
                 await asyncio.sleep(1)
