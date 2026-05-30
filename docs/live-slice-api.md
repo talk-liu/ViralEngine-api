@@ -380,14 +380,20 @@ pending → processing → completed
 #### 用法
 
 ```typescript
-// 下载视频 Blob（用于预览或转存）
+// 封面：<img src={clip.coverUrl} alt={clip.title} />
+
+// 视频：直接用签名 URL 作为 src（服务端已支持 Range 流式播放）
+<video src={clip.videoUrl} controls preload="metadata" />
+
+// 如需用 canvas 截帧等，可加 crossOrigin
+<video src={clip.videoUrl} controls crossOrigin="anonymous" />
+
+// 下载为 Blob 保存到本地
 const videoBlob = await fetch(clip.videoUrl!).then((r) => r.blob());
-
-// 下载字幕文本
-const subtitleText = await fetch(clip.subtitleUrl!).then((r) => r.text());
-
-// 封面可直接用于 <img src={clip.coverUrl} />
 ```
+
+> **页面播放失败、但下载正常？** 通常是旧版接口未支持 HTTP Range 或跨域 CORP 限制。请确保 API 已更新，并重新 `GET /jobs/:jobId` 刷新签名 URL。  
+> **2026-05-30 之后新生成的切片** 已启用 `faststart` 编码，浏览器兼容性更好；旧切片若仍无法播放，请重新跑一遍切片任务。
 
 #### 签名 URL 说明
 
@@ -579,7 +585,7 @@ function ClipCard({ clip }: { clip: LiveSliceClip }) {
   return (
     <div>
       <img src={clip.coverUrl} alt={clip.title} />
-      <video src={clip.videoUrl} controls />
+      <video src={clip.videoUrl} controls preload="metadata" />
       <h3>{clip.title}</h3>
       <p>{clip.description}</p>
       <span>评分 {(clip.score * 100).toFixed(0)}%</span>

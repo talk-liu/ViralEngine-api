@@ -2,11 +2,11 @@ import {
   Controller,
   Get,
   Query,
+  Req,
   Res,
-  StreamableFile,
 } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
-import type { Response } from 'express';
+import type { Request, Response } from 'express';
 import { MediaAiStorageService } from '../services/media-ai-storage.service';
 
 @ApiTags('Media AI Assets')
@@ -17,25 +17,45 @@ export class MediaAiAssetsController {
   @Get('content')
   @ApiOperation({
     summary: '通过签名 URL 访问媒体任务文件（无需 JWT）',
+    description:
+      '支持 HTTP Range 请求，供浏览器 <video> 标签流式播放；跨域页面可正常预览。',
   })
   async streamContent(
     @Query('key') key: string,
     @Query('expires') expiresRaw: string,
     @Query('sig') sig: string,
-    @Res({ passthrough: true }) res: Response,
-  ) {
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
     const expires = parseInt(expiresRaw, 10);
     this.storageService.verifySignedAccess(key, expires, sig);
 
-    const { stream, mimeType, fileName } =
-      await this.storageService.openReadStream(key);
-
-    res.setHeader('Content-Type', mimeType);
-    res.setHeader(
-      'Content-Disposition',
-      `inline; filename="${encodeURIComponent(fileName)}"`,
+    const rangeHeader = req.headers.range;
+    const result = await this.storageService.openStreamWithRange(
+      key,
+      typeof rangeHeader === 'string' ? rangeHeader : undefined,
     );
 
-    return new StreamableFile(stream);
+    res.status(result.statusCode);
+    res.setHeader('Content-Type', result.mimeType);
+    res.setHeader('Accept-Ranges', 'bytes');
+    res.setHeader('Content-Length', result.contentLength);
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+    res.setHeader(
+      'Content-Disposition',
+      `inline; filename="${encodeURIComponent(result.fileName)}"`,
+    );
+    if (result.contentRange) {
+      res.setHeader('Content-Range', result.contentRange);
+    }
+
+    result.stream.on('error', () => {
+      if (!res.headersSent) {
+        res.status(500).end();
+        return;
+      }
+      res.destroy();
+    });
+    result.stream.pipe(res);
   }
 }

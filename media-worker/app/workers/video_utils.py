@@ -85,8 +85,22 @@ def cut_clip(
         f"{duration:.3f}",
     ]
     if vf_parts:
-        command.extend(["-vf", ",".join(vf_parts)])
-        command.extend(["-c:a", "aac", "-c:v", "libx264", "-preset", "veryfast"])
+        command.extend(
+            [
+                "-vf",
+                ",".join(vf_parts),
+                "-c:a",
+                "aac",
+                "-c:v",
+                "libx264",
+                "-preset",
+                "veryfast",
+                "-pix_fmt",
+                "yuv420p",
+                "-movflags",
+                "+faststart",
+            ]
+        )
     else:
         command.extend(["-c", "copy"])
     command.append(str(output_path))

@@ -152,17 +152,94 @@ export class MediaAiStorageService implements OnModuleInit {
     mimeType: string;
     fileName: string;
   }> {
+    const file = await this.resolveReadableFile(storageKey);
+    return {
+      stream: createReadStream(file.absolutePath),
+      mimeType: file.mimeType,
+      fileName: file.fileName,
+    };
+  }
+
+  async openStreamWithRange(
+    storageKey: string,
+    rangeHeader?: string,
+  ): Promise<{
+    statusCode: 200 | 206;
+    stream: Readable;
+    mimeType: string;
+    fileName: string;
+    contentLength: number;
+    contentRange?: string;
+  }> {
+    const file = await this.resolveReadableFile(storageKey);
+
+    if (!rangeHeader?.startsWith('bytes=')) {
+      return {
+        statusCode: 200,
+        stream: createReadStream(file.absolutePath),
+        mimeType: file.mimeType,
+        fileName: file.fileName,
+        contentLength: file.size,
+      };
+    }
+
+    const match = /^bytes=(\d*)-(\d*)$/.exec(rangeHeader.trim());
+    if (!match) {
+      return {
+        statusCode: 200,
+        stream: createReadStream(file.absolutePath),
+        mimeType: file.mimeType,
+        fileName: file.fileName,
+        contentLength: file.size,
+      };
+    }
+
+    const fileSize = file.size;
+    let start = match[1] ? parseInt(match[1], 10) : 0;
+    let end = match[2] ? parseInt(match[2], 10) : fileSize - 1;
+
+    if (Number.isNaN(start) || start < 0 || start >= fileSize) {
+      start = 0;
+      end = Math.min(fileSize - 1, end);
+    }
+    end = Math.min(end, fileSize - 1);
+    if (end < start) {
+      end = start;
+    }
+
+    const contentLength = end - start + 1;
+    return {
+      statusCode: 206,
+      stream: createReadStream(file.absolutePath, { start, end }),
+      mimeType: file.mimeType,
+      fileName: file.fileName,
+      contentLength,
+      contentRange: `bytes ${start}-${end}/${fileSize}`,
+    };
+  }
+
+  private async resolveReadableFile(storageKey: string): Promise<{
+    absolutePath: string;
+    fileName: string;
+    mimeType: string;
+    size: number;
+  }> {
     const absolutePath = this.toAbsolutePath(storageKey);
+    let stat;
     try {
-      await fs.access(absolutePath);
+      stat = await fs.stat(absolutePath);
     } catch {
+      throw new NotFoundException('文件不存在');
+    }
+    if (!stat.isFile()) {
       throw new NotFoundException('文件不存在');
     }
     const fileName = path.basename(storageKey);
     return {
-      stream: createReadStream(absolutePath),
-      mimeType: this.guessMimeType(fileName),
+      absolutePath,
       fileName,
+      mimeType: this.guessMimeType(fileName),
+      size: stat.size,
     };
   }
 
