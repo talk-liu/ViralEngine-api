@@ -24,7 +24,11 @@ const VIDEO_MIME_TYPES = new Set([
   'video/quicktime',
   'video/webm',
   'video/x-msvideo',
+  'video/mp2t',
+  'video/vnd.dlna.mpeg-tts',
 ]);
+
+const VIDEO_FILE_EXTENSIONS = new Set(['.mp4', '.mov', '.webm', '.avi', '.ts']);
 
 interface LiveSliceCartItemParam {
   id?: string;
@@ -279,7 +283,10 @@ export class MediaAiService {
       throw new BadRequestException('请上传视频文件');
     }
     if (!VIDEO_MIME_TYPES.has(file.mimetype)) {
-      throw new BadRequestException('不支持的视频格式');
+      const ext = path.extname(file.originalname ?? '').toLowerCase();
+      if (!VIDEO_FILE_EXTENSIONS.has(ext)) {
+        throw new BadRequestException('不支持的视频格式');
+      }
     }
   }
 

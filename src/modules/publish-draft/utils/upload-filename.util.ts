@@ -5,6 +5,8 @@ const MIME_TO_EXT: Record<string, string> = {
   'video/quicktime': '.mov',
   'video/webm': '.webm',
   'video/x-msvideo': '.avi',
+  'video/mp2t': '.ts',
+  'video/vnd.dlna.mpeg-tts': '.ts',
   'image/jpeg': '.jpg',
   'image/png': '.png',
   'image/webp': '.webp',

@@ -255,6 +255,7 @@ export class MediaAiStorageService implements OnModuleInit {
       '.mp4': 'video/mp4',
       '.mov': 'video/quicktime',
       '.webm': 'video/webm',
+      '.ts': 'video/mp2t',
       '.jpg': 'image/jpeg',
       '.jpeg': 'image/jpeg',
       '.png': 'image/png',

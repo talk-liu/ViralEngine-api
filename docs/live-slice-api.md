@@ -209,6 +209,8 @@ interface CreateLiveSliceJobForm {
 | `video/quicktime` | `.mov` |
 | `video/webm` | `.webm` |
 | `video/x-msvideo` | `.avi` |
+| `video/mp2t` | `.ts`（直播录像常见格式） |
+| `video/vnd.dlna.mpeg-tts` | `.ts` |
 
 #### 响应 `201`
 
