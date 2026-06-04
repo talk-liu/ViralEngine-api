@@ -264,6 +264,11 @@ export class MediaAiStorageService implements OnModuleInit {
       '.srt': 'application/x-subrip',
       '.vtt': 'text/vtt',
       '.json': 'application/json',
+      '.wav': 'audio/wav',
+      '.mp3': 'audio/mpeg',
+      '.flac': 'audio/flac',
+      '.m4a': 'audio/mp4',
+      '.ogg': 'audio/ogg',
     };
     return map[ext] ?? 'application/octet-stream';
   }

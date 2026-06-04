@@ -15,8 +15,21 @@ logging.basicConfig(
 consumer = QueueConsumer()
 
 
+def _preload_indextts2() -> None:
+    if not settings.indextts2_repo_path:
+        return
+    from app.workers.indextts2 import _get_tts
+
+    _get_tts()
+
+
 @asynccontextmanager
 async def lifespan(_: FastAPI):
+    if settings.indextts2_preload and settings.indextts2_repo_path:
+        logging.getLogger(__name__).info(
+            "Preloading IndexTTS2 (INDEXTTS2_PRELOAD=true)…"
+        )
+        await asyncio.to_thread(_preload_indextts2)
     task = asyncio.create_task(consumer.start())
     yield
     await consumer.stop()

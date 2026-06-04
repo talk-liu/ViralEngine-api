@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -8,10 +9,14 @@ import {
   Param,
   Post,
   UploadedFile,
+  UploadedFiles,
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
+import {
+  FileFieldsInterceptor,
+  FileInterceptor,
+} from '@nestjs/platform-express';
 import {
   ApiBearerAuth,
   ApiConsumes,
@@ -28,7 +33,12 @@ import type { AuthUser } from '../../../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
 import { CreateLiveSliceJobDto } from '../dto/create-live-slice-job.dto';
 import { CreateSubtitleJobDto } from '../dto/create-subtitle-job.dto';
+import { CreateTtsJobDto } from '../dto/create-tts-job.dto';
 import { CreateWatermarkJobDto } from '../dto/create-watermark-job.dto';
+import {
+  buildIndexTts2ParamsSchema,
+  IndexTts2ParamsSchemaDto,
+} from '../dto/indextts2-params-schema.dto';
 import { MediaJobResponseDto } from '../dto/media-job-response.dto';
 import { MediaAiService } from '../services/media-ai.service';
 
@@ -106,5 +116,47 @@ export class MediaAiController {
     @Body() dto: CreateLiveSliceJobDto,
   ) {
     return this.mediaAiService.createLiveSliceJob(user.id, file, dto);
+  }
+
+  @Get('tts/params')
+  @ApiOperation({
+    summary: 'IndexTTS2 推理参数说明',
+    description:
+      '返回前端表单可用的字段名、默认值、取值范围与 multipart 文件字段名（spkFile / emoFile）。',
+  })
+  @ApiOkResponse({ type: IndexTts2ParamsSchemaDto })
+  getIndexTts2Params(): IndexTts2ParamsSchemaDto {
+    return buildIndexTts2ParamsSchema();
+  }
+
+  @Post('jobs/tts')
+  @UseInterceptors(
+    FileFieldsInterceptor([
+      { name: 'spkFile', maxCount: 1 },
+      { name: 'emoFile', maxCount: 1 },
+    ]),
+  )
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({
+    summary: '创建 IndexTTS2 语音合成任务',
+    description:
+      '上传音色参考音频 spkFile，按 text 与情感/采样参数合成 WAV。emoControlMethod=1 时需上传 emoFile。',
+  })
+  @ApiCreatedResponse({ type: MediaJobResponseDto })
+  createTtsJob(
+    @CurrentUser() user: AuthUser,
+    @UploadedFiles()
+    files: {
+      spkFile?: Express.Multer.File[];
+      emoFile?: Express.Multer.File[];
+    },
+    @Body() dto: CreateTtsJobDto,
+  ) {
+    const spkFile = files?.spkFile?.[0];
+    const emoFile = files?.emoFile?.[0];
+    if (!spkFile) {
+      throw new BadRequestException('请上传音色参考音频 spkFile');
+    }
+    return this.mediaAiService.createTtsJob(user.id, spkFile, emoFile, dto);
   }
 }

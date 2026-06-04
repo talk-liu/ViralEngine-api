@@ -1,10 +1,7 @@
 import asyncio
+
 from app.models import MediaJobPayload
 from app.services.storage import StorageService
-from app.workers.subtitle import extract_subtitles
-from app.workers.text2image import generate_image
-from app.workers.watermark import apply_watermark
-from app.workers.live_slice import process_live_slice
 
 
 class JobProcessor:
@@ -25,9 +22,14 @@ class JobProcessor:
         if payload.type == "live_slice":
             await self._process_live_slice(payload)
             return
+        if payload.type == "tts":
+            await self._process_tts(payload)
+            return
         raise ValueError(f"不支持的任务类型: {payload.type}")
 
     async def _process_watermark(self, payload: MediaJobPayload) -> None:
+        from app.workers.watermark import apply_watermark
+
         input_path = self.storage.resolve(payload.inputKey)
         output_path = self.storage.ensure_parent(payload.outputKey)
         params = payload.params
@@ -42,6 +44,8 @@ class JobProcessor:
         )
 
     async def _process_subtitle(self, payload: MediaJobPayload) -> None:
+        from app.workers.subtitle import extract_subtitles
+
         input_path = self.storage.resolve(payload.inputKey)
         output_path = self.storage.ensure_parent(payload.outputKey)
         params = payload.params
@@ -58,6 +62,8 @@ class JobProcessor:
         )
 
     async def _process_text2image(self, payload: MediaJobPayload) -> None:
+        from app.workers.text2image import generate_image
+
         output_path = self.storage.ensure_parent(payload.outputKey)
         params = payload.params
 
@@ -68,7 +74,26 @@ class JobProcessor:
             height=int(params.get("height", 1024)),
         )
 
+    async def _process_tts(self, payload: MediaJobPayload) -> None:
+        from app.workers.indextts2 import synthesize_indextts2
+
+        input_path = self.storage.resolve(payload.inputKey)
+        output_path = self.storage.ensure_parent(payload.outputKey)
+        params = payload.params
+        emo_key = params.get("emoInputKey")
+        emo_path = self.storage.resolve(emo_key) if isinstance(emo_key, str) and emo_key else None
+
+        await asyncio.to_thread(
+            synthesize_indextts2,
+            input_path,
+            output_path,
+            emo_audio_path=emo_path,
+            params=params,
+        )
+
     async def _process_live_slice(self, payload: MediaJobPayload) -> None:
+        from app.workers.live_slice import process_live_slice
+
         input_path = self.storage.resolve(payload.inputKey)
         output_path = self.storage.ensure_parent(payload.outputKey)
         callback = self.callback

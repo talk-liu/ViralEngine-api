@@ -3,4 +3,5 @@ export enum MediaJobType {
   SUBTITLE = 'subtitle',
   TEXT2IMAGE = 'text2image',
   LIVE_SLICE = 'live_slice',
+  TTS = 'tts',
 }

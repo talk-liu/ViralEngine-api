@@ -9,6 +9,7 @@ import { Repository } from 'typeorm';
 import { buildUniqueFileName } from '../../publish-draft/utils/upload-filename.util';
 import { CreateLiveSliceJobDto } from '../dto/create-live-slice-job.dto';
 import { CreateSubtitleJobDto } from '../dto/create-subtitle-job.dto';
+import { CreateTtsJobDto } from '../dto/create-tts-job.dto';
 import { CreateWatermarkJobDto } from '../dto/create-watermark-job.dto';
 import type { LiveSliceManifestDto } from '../dto/live-slice-manifest.dto';
 import type { MediaJobResponseDto } from '../dto/media-job-response.dto';
@@ -29,6 +30,28 @@ const VIDEO_MIME_TYPES = new Set([
 ]);
 
 const VIDEO_FILE_EXTENSIONS = new Set(['.mp4', '.mov', '.webm', '.avi', '.ts']);
+
+const AUDIO_MIME_TYPES = new Set([
+  'audio/wav',
+  'audio/x-wav',
+  'audio/wave',
+  'audio/mpeg',
+  'audio/mp3',
+  'audio/flac',
+  'audio/ogg',
+  'audio/mp4',
+  'audio/x-m4a',
+  'audio/aac',
+]);
+
+const AUDIO_FILE_EXTENSIONS = new Set([
+  '.wav',
+  '.mp3',
+  '.flac',
+  '.ogg',
+  '.m4a',
+  '.aac',
+]);
 
 interface LiveSliceCartItemParam {
   id?: string;
@@ -153,6 +176,110 @@ export class MediaAiService {
       },
       outputFileName: 'manifest.json',
     });
+  }
+
+  async createTtsJob(
+    userId: string,
+    spkFile: Express.Multer.File,
+    emoFile: Express.Multer.File | undefined,
+    dto: CreateTtsJobDto,
+  ): Promise<MediaJobResponseDto> {
+    this.assertAudioFile(spkFile);
+
+    const emoControlMethod = dto.emoControlMethod ?? 0;
+    if (emoControlMethod === 1) {
+      if (!emoFile) {
+        throw new BadRequestException(
+          'emoControlMethod=1 时请上传情感参考音频 emoFile',
+        );
+      }
+      this.assertAudioFile(emoFile);
+    }
+
+    const emoVector = this.parseEmoVector(dto.emoVector);
+    if (emoControlMethod === 2 && !emoVector) {
+      throw new BadRequestException(
+        'emoControlMethod=2 时请提供 emoVector（8 维 JSON 数组）',
+      );
+    }
+
+    const params: Record<string, unknown> = {
+      text: dto.text.trim(),
+      emoControlMethod,
+      emoWeight: dto.emoWeight,
+      emoVector,
+      emoText: dto.emoText?.trim() || undefined,
+      emoRandom: dto.emoRandom,
+      maxTextTokensPerSegment: dto.maxTextTokensPerSegment,
+      intervalSilence: dto.intervalSilence,
+      verbose: dto.verbose,
+      doSample: dto.doSample,
+      topP: dto.topP,
+      topK: dto.topK,
+      temperature: dto.temperature,
+      lengthPenalty: dto.lengthPenalty,
+      numBeams: dto.numBeams,
+      repetitionPenalty: dto.repetitionPenalty,
+      maxMelTokens: dto.maxMelTokens,
+    };
+
+    const job = await this.jobRepository.save(
+      this.jobRepository.create({
+        userId,
+        type: MediaJobType.TTS,
+        status: MediaJobStatus.PENDING,
+        params,
+      }),
+    );
+
+    const spkFileName = buildUniqueFileName(
+      'spk',
+      spkFile.mimetype,
+      spkFile.originalname,
+    );
+    const inputKey = this.storageService.buildInputKey(
+      userId,
+      job.id,
+      spkFileName,
+    );
+    const outputKey = this.storageService.buildOutputKey(
+      userId,
+      job.id,
+      'speech.wav',
+    );
+
+    await this.storageService.saveFile(inputKey, spkFile.buffer);
+    job.inputKey = inputKey;
+    job.outputKey = outputKey;
+
+    if (emoFile) {
+      const emoFileName = buildUniqueFileName(
+        'emo',
+        emoFile.mimetype,
+        emoFile.originalname,
+      );
+      const emoInputKey = this.storageService.buildInputKey(
+        userId,
+        job.id,
+        emoFileName,
+      );
+      await this.storageService.saveFile(emoInputKey, emoFile.buffer);
+      params.emoInputKey = emoInputKey;
+      job.params = params;
+    }
+
+    await this.jobRepository.save(job);
+
+    await this.queueService.enqueue({
+      jobId: job.id,
+      userId,
+      type: MediaJobType.TTS,
+      inputKey,
+      outputKey,
+      params: job.params as Record<string, unknown>,
+    });
+
+    return toMediaJobResponse(job, (key) => this.storageService.getSignedUrl(key));
   }
 
   async updateProgress(jobId: string, progress: number): Promise<void> {
@@ -291,11 +418,57 @@ export class MediaAiService {
   }
 
   private async deleteInputArtifact(job: MediaJob): Promise<void> {
-    if (!job.inputKey) {
-      return;
+    const keys = new Set<string>();
+    if (job.inputKey) {
+      keys.add(job.inputKey);
     }
-    await this.storageService.deleteFile(job.inputKey);
-    await this.jobRepository.update(job.id, { inputKey: null });
+    const emoInputKey = job.params?.emoInputKey;
+    if (typeof emoInputKey === 'string' && emoInputKey) {
+      keys.add(emoInputKey);
+    }
+    for (const key of keys) {
+      await this.storageService.deleteFile(key);
+    }
+    if (job.inputKey) {
+      await this.jobRepository.update(job.id, { inputKey: null });
+    }
+  }
+
+  private assertAudioFile(file: Express.Multer.File): void {
+    if (!file?.buffer?.length) {
+      throw new BadRequestException('请上传音频文件');
+    }
+    if (!AUDIO_MIME_TYPES.has(file.mimetype)) {
+      const ext = path.extname(file.originalname ?? '').toLowerCase();
+      if (!AUDIO_FILE_EXTENSIONS.has(ext)) {
+        throw new BadRequestException('不支持的音频格式');
+      }
+    }
+  }
+
+  private parseEmoVector(raw?: string): number[] | undefined {
+    if (!raw?.trim()) {
+      return undefined;
+    }
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      throw new BadRequestException('emoVector 必须是合法 JSON 数组');
+    }
+    if (!Array.isArray(parsed) || parsed.length !== 8) {
+      throw new BadRequestException('emoVector 必须是长度为 8 的 JSON 数组');
+    }
+    const values = parsed.map((item, index) => {
+      const num = Number(item);
+      if (!Number.isFinite(num) || num < 0 || num > 1) {
+        throw new BadRequestException(
+          `emoVector[${index}] 必须是 0~1 之间的数字`,
+        );
+      }
+      return num;
+    });
+    return values;
   }
 
   private parseLiveSliceCartItems(

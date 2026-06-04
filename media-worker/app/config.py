@@ -58,6 +58,21 @@ class Settings(BaseSettings):
     llm_model: str = Field(default="qwen-plus", alias="LLM_MODEL")
     llm_timeout: float = Field(default=120.0, alias="LLM_TIMEOUT")
 
+    # IndexTTS2 语音合成（需本机已下载模型，见 INDEXTTS2_REPO_PATH）
+    indextts2_repo_path: str | None = Field(default=None, alias="INDEXTTS2_REPO_PATH")
+    indextts2_model_dir: str | None = Field(default=None, alias="INDEXTTS2_MODEL_DIR")
+    indextts2_device: str | None = Field(default=None, alias="INDEXTTS2_DEVICE")
+    indextts2_use_fp16: bool = Field(default=False, alias="INDEXTTS2_USE_FP16")
+    indextts2_use_deepspeed: bool = Field(default=False, alias="INDEXTTS2_USE_DEEPSPEED")
+    indextts2_use_cuda_kernel: bool = Field(
+        default=False,
+        alias="INDEXTTS2_USE_CUDA_KERNEL",
+    )
+    indextts2_preload: bool = Field(
+        default=True,
+        alias="INDEXTTS2_PRELOAD",
+    )
+
     @field_validator("storage_local_path")
     @classmethod
     def resolve_storage_local_path(cls, value: str) -> str:
@@ -65,6 +80,17 @@ class Settings(BaseSettings):
         if path.is_absolute():
             return str(path)
         return str((_ROOT_DIR / path).resolve())
+
+    @field_validator("indextts2_repo_path", "indextts2_model_dir")
+    @classmethod
+    def resolve_optional_absolute_path(cls, value: str | None) -> str | None:
+        if not value:
+            return None
+        path = Path(value)
+        if path.is_absolute():
+            return str(path.resolve())
+        return str(path.resolve())
+
 
 settings = Settings()
 
