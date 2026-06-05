@@ -1,0 +1,74 @@
+# GPU 媒体 Worker：IndexTTS2 + FlashHead Pro 双 venv，模型目录运行时挂载
+FROM nvidia/cuda:12.8.1-cudnn-runtime-ubuntu22.04
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    PYTHONUNBUFFERED=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PIP_NO_CACHE_DIR=1
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        python3.11 \
+        python3.11-venv \
+        python3.11-dev \
+        python3-pip \
+        ffmpeg \
+        git \
+        libgomp1 \
+        libglib2.0-0 \
+        libsm6 \
+        libxext6 \
+        libxrender1 \
+        libgl1 \
+    && rm -rf /var/lib/apt/lists/* \
+    && ln -sf /usr/bin/python3.11 /usr/local/bin/python3 \
+    && ln -sf /usr/bin/python3.11 /usr/local/bin/python
+
+WORKDIR /app
+
+ENV TORCH_INDEX_URL=https://download.pytorch.org/whl/cu128
+
+# Worker 主进程 venv（队列、Whisper、FunASR 等）
+RUN python3.11 -m venv /opt/venvs/worker
+COPY requirements.txt /tmp/worker-requirements.txt
+RUN /opt/venvs/worker/bin/pip install --upgrade pip \
+    && /opt/venvs/worker/bin/pip install torch torchaudio --index-url ${TORCH_INDEX_URL} \
+    && /opt/venvs/worker/bin/pip install -r /tmp/worker-requirements.txt
+
+# IndexTTS2 独立 venv（与 FlashHead 依赖隔离）
+RUN python3.11 -m venv /opt/venvs/indextts2
+COPY docker/indextts2-requirements.txt /tmp/indextts2-requirements.txt
+RUN /opt/venvs/indextts2/bin/pip install --upgrade pip \
+    && /opt/venvs/indextts2/bin/pip install torch==2.8.0 torchaudio==2.8.0 --index-url ${TORCH_INDEX_URL} \
+    && /opt/venvs/indextts2/bin/pip install -r /tmp/indextts2-requirements.txt
+
+# FlashHead Pro 独立 venv
+RUN python3.11 -m venv /opt/venvs/flashhead
+COPY docker/flashhead-requirements.txt /tmp/flashhead-requirements.txt
+RUN /opt/venvs/flashhead/bin/pip install --upgrade pip \
+    && /opt/venvs/flashhead/bin/pip install torch==2.7.1 torchvision==0.22.1 --index-url ${TORCH_INDEX_URL} \
+    && /opt/venvs/flashhead/bin/pip install -r /tmp/flashhead-requirements.txt
+
+COPY app ./app
+COPY scripts ./scripts
+COPY docker/entrypoint.gpu.sh /entrypoint.gpu.sh
+RUN chmod +x /entrypoint.gpu.sh
+
+ENV INDEXTTS2_REPO_PATH=/opt/indextts2 \
+    INDEXTTS2_MODEL_DIR=/opt/indextts2/checkpoints \
+    INDEXTTS2_DEVICE=cuda:0 \
+    INDEXTTS2_USE_FP16=true \
+    INDEXTTS2_USE_CUDA_KERNEL=false \
+    INDEXTTS2_PRELOAD=false \
+    INDEXTTS2_PYTHON=/opt/venvs/indextts2/bin/python \
+    FLASHHEAD_REPO_PATH=/opt/flashhead \
+    FLASHHEAD_CKPT_DIR=/opt/flashhead/models/SoulX-FlashHead-1_3B \
+    FLASHHEAD_WAV2VEC_DIR=/opt/flashhead/models/wav2vec2-base-960h \
+    FLASHHEAD_PYTHON=/opt/venvs/flashhead/bin/python \
+    WHISPER_DEVICE=cuda \
+    FUNASR_DEVICE=cuda
+
+EXPOSE 8000
+
+ENTRYPOINT ["/entrypoint.gpu.sh"]
+CMD ["/opt/venvs/worker/bin/python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

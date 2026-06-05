@@ -1,4 +1,5 @@
 # IndexTTS2 TTS 需使用其 venv（含 torchaudio/CUDA 与匹配的 transformers）
+# FlashHead 推理通过子进程调用 FLASHHEAD_PYTHON，与 IndexTTS2 venv 互不冲突
 $ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent $PSScriptRoot
 $Python = if ($env:INDEXTTS2_PYTHON) { $env:INDEXTTS2_PYTHON } else { "D:\workbench\talk\IndexTTS2\.venv\Scripts\python.exe" }

@@ -1,0 +1,50 @@
+# GPU 媒体 Worker 覆盖配置
+# 用法: docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d --build
+#
+# 前置: NVIDIA Container Toolkit + 宿主机已下载 IndexTTS2 / FlashHead 仓库与权重
+
+services:
+  media-worker:
+    build:
+      context: ./media-worker
+      dockerfile: Dockerfile.gpu
+    container_name: viralengine-media-worker-gpu
+    environment:
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_DB: 0
+      MEDIA_AI_QUEUE_KEY: ${MEDIA_AI_QUEUE_KEY:-media-ai:jobs}
+      MEDIA_WORKER_SECRET: ${MEDIA_WORKER_SECRET:-change-me-media-worker-secret}
+      STORAGE_LOCAL_PATH: /app/storage
+      API_BASE_URL: http://api:3000/api
+      HF_ENDPOINT: ${HF_ENDPOINT:-https://hf-mirror.com}
+      ASR_ENGINE: ${ASR_ENGINE:-auto}
+      LLM_API_BASE: ${LLM_API_BASE:-https://dashscope.aliyuncs.com/compatible-mode/v1}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_MODEL: ${LLM_MODEL:-qwen-plus}
+      WHISPER_MODEL: ${WHISPER_MODEL:-small}
+      WHISPER_DEVICE: cuda
+      WHISPER_COMPUTE_TYPE: ${WHISPER_COMPUTE_TYPE:-float16}
+      FUNASR_DEVICE: cuda
+      INDEXTTS2_REPO_PATH: /opt/indextts2
+      INDEXTTS2_MODEL_DIR: /opt/indextts2/checkpoints
+      INDEXTTS2_DEVICE: cuda:0
+      INDEXTTS2_USE_FP16: "true"
+      INDEXTTS2_USE_CUDA_KERNEL: "false"
+      INDEXTTS2_PRELOAD: "false"
+      INDEXTTS2_PYTHON: /opt/venvs/indextts2/bin/python
+      FLASHHEAD_REPO_PATH: /opt/flashhead
+      FLASHHEAD_CKPT_DIR: /opt/flashhead/models/SoulX-FlashHead-1_3B
+      FLASHHEAD_WAV2VEC_DIR: /opt/flashhead/models/wav2vec2-base-960h
+      FLASHHEAD_PYTHON: /opt/venvs/flashhead/bin/python
+    volumes:
+      - storage_data:/app/storage
+      - ${INDEXTTS2_HOST_PATH:?请在 .env 设置 INDEXTTS2_HOST_PATH}:/opt/indextts2:ro
+      - ${FLASHHEAD_HOST_PATH:?请在 .env 设置 FLASHHEAD_HOST_PATH}:/opt/flashhead:ro
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]

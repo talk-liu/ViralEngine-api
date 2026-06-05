@@ -31,10 +31,15 @@ import { ApiErrorResponseDto } from '../../../common/dto/api-error.dto';
 import { CurrentUser } from '../../../auth/decorators/current-user.decorator';
 import type { AuthUser } from '../../../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
+import { CreateFlashHeadJobDto } from '../dto/create-flashhead-job.dto';
 import { CreateLiveSliceJobDto } from '../dto/create-live-slice-job.dto';
 import { CreateSubtitleJobDto } from '../dto/create-subtitle-job.dto';
 import { CreateTtsJobDto } from '../dto/create-tts-job.dto';
 import { CreateWatermarkJobDto } from '../dto/create-watermark-job.dto';
+import {
+  buildFlashHeadParamsSchema,
+  FlashHeadParamsSchemaDto,
+} from '../dto/flashhead-params-schema.dto';
 import {
   buildIndexTts2ParamsSchema,
   IndexTts2ParamsSchemaDto,
@@ -158,5 +163,55 @@ export class MediaAiController {
       throw new BadRequestException('请上传音色参考音频 spkFile');
     }
     return this.mediaAiService.createTtsJob(user.id, spkFile, emoFile, dto);
+  }
+
+  @Get('flashhead/params')
+  @ApiOperation({
+    summary: 'FlashHead Pro 推理参数说明',
+    description:
+      '返回前端表单可用的字段名、默认值与 multipart 文件字段名（portraitFile / audioFile）。',
+  })
+  @ApiOkResponse({ type: FlashHeadParamsSchemaDto })
+  getFlashHeadParams(): FlashHeadParamsSchemaDto {
+    return buildFlashHeadParamsSchema();
+  }
+
+  @Post('jobs/flashhead')
+  @UseInterceptors(
+    FileFieldsInterceptor([
+      { name: 'portraitFile', maxCount: 1 },
+      { name: 'audioFile', maxCount: 1 },
+    ]),
+  )
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({
+    summary: '创建 FlashHead Pro 口播数字人任务',
+    description:
+      '上传人像参考图 portraitFile 与驱动音频 audioFile，生成对口型口播视频 MP4。',
+  })
+  @ApiCreatedResponse({ type: MediaJobResponseDto })
+  createFlashHeadJob(
+    @CurrentUser() user: AuthUser,
+    @UploadedFiles()
+    files: {
+      portraitFile?: Express.Multer.File[];
+      audioFile?: Express.Multer.File[];
+    },
+    @Body() dto: CreateFlashHeadJobDto,
+  ) {
+    const portraitFile = files?.portraitFile?.[0];
+    const audioFile = files?.audioFile?.[0];
+    if (!portraitFile) {
+      throw new BadRequestException('请上传人像参考图 portraitFile');
+    }
+    if (!audioFile) {
+      throw new BadRequestException('请上传驱动音频 audioFile');
+    }
+    return this.mediaAiService.createFlashHeadJob(
+      user.id,
+      portraitFile,
+      audioFile,
+      dto,
+    );
   }
 }

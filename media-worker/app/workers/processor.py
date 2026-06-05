@@ -25,6 +25,9 @@ class JobProcessor:
         if payload.type == "tts":
             await self._process_tts(payload)
             return
+        if payload.type == "flashhead":
+            await self._process_flashhead(payload)
+            return
         raise ValueError(f"不支持的任务类型: {payload.type}")
 
     async def _process_watermark(self, payload: MediaJobPayload) -> None:
@@ -88,6 +91,25 @@ class JobProcessor:
             input_path,
             output_path,
             emo_audio_path=emo_path,
+            params=params,
+        )
+
+    async def _process_flashhead(self, payload: MediaJobPayload) -> None:
+        from app.workers.flashhead import generate_flashhead
+
+        portrait_path = self.storage.resolve(payload.inputKey)
+        output_path = self.storage.ensure_parent(payload.outputKey)
+        params = payload.params
+        audio_key = params.get("audioInputKey")
+        if not isinstance(audio_key, str) or not audio_key:
+            raise ValueError("flashhead 任务缺少 audioInputKey")
+        audio_path = self.storage.resolve(audio_key)
+
+        await asyncio.to_thread(
+            generate_flashhead,
+            portrait_path,
+            audio_path,
+            output_path,
             params=params,
         )
 

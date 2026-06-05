@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import json
 import logging
 import os
+import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 from app.config import settings
@@ -10,6 +13,7 @@ from app.config import settings
 logger = logging.getLogger(__name__)
 
 _tts = None
+_INFER_SCRIPT = Path(__file__).resolve().parents[1] / "scripts" / "run_indextts2_infer.py"
 
 
 def _repo_root() -> Path:
@@ -93,6 +97,82 @@ def _resolve_emo_vector(params: dict) -> list[float] | None:
     return tts.normalize_emo_vec([float(x) for x in vec], apply_bias=True)
 
 
+def _uses_subprocess() -> bool:
+    if not settings.indextts2_python:
+        return False
+    return Path(settings.indextts2_python).resolve() != Path(sys.executable).resolve()
+
+
+def _synthesize_subprocess(
+    spk_audio_path: Path,
+    output_path: Path,
+    *,
+    emo_audio_path: Path | None,
+    payload: dict,
+) -> None:
+    python = Path(settings.indextts2_python).resolve()
+    if not python.is_file():
+        raise FileNotFoundError(f"IndexTTS2 Python 不存在: {python}")
+    if not _INFER_SCRIPT.is_file():
+        raise FileNotFoundError(f"缺少推理脚本: {_INFER_SCRIPT}")
+
+    params_file: str | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            suffix=".json",
+            delete=False,
+            encoding="utf-8",
+        ) as handle:
+            json.dump(payload, handle, ensure_ascii=False)
+            params_file = handle.name
+
+        cmd = [
+            str(python),
+            str(_INFER_SCRIPT),
+            "--repo",
+            str(_repo_root()),
+            "--model-dir",
+            str(_model_dir()),
+            "--spk",
+            str(spk_audio_path.resolve()),
+            "--output",
+            str(output_path.resolve()),
+            "--params-json",
+            params_file,
+        ]
+        if settings.indextts2_device:
+            cmd.extend(["--device", settings.indextts2_device])
+        if settings.indextts2_use_fp16:
+            cmd.append("--use-fp16")
+        if settings.indextts2_use_deepspeed:
+            cmd.append("--use-deepspeed")
+        if settings.indextts2_use_cuda_kernel:
+            cmd.append("--use-cuda-kernel")
+        if emo_audio_path and emo_audio_path.is_file():
+            cmd.extend(["--emo", str(emo_audio_path.resolve())])
+
+        logger.info("Running IndexTTS2 subprocess spk=%s output=%s", spk_audio_path, output_path)
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+        )
+        if result.returncode != 0:
+            stderr = (result.stderr or "").strip()
+            stdout = (result.stdout or "").strip()
+            detail = stderr or stdout or f"exit code {result.returncode}"
+            raise RuntimeError(f"IndexTTS2 推理失败: {detail}")
+    finally:
+        if params_file:
+            Path(params_file).unlink(missing_ok=True)
+
+    if not output_path.is_file():
+        raise RuntimeError("IndexTTS2 未生成输出音频")
+
+
 def synthesize_indextts2(
     spk_audio_path: Path,
     output_path: Path,
@@ -130,6 +210,15 @@ def synthesize_indextts2(
         use_emo_text = True
     else:
         raise ValueError(f"不支持的 emoControlMethod: {emo_control_method}")
+
+    if _uses_subprocess():
+        _synthesize_subprocess(
+            spk_audio_path,
+            output_path,
+            emo_audio_path=emo_audio_path,
+            payload=payload,
+        )
+        return
 
     top_k = int(payload.get("topK", 30))
     generation_kwargs = {

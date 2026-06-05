@@ -7,6 +7,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import * as path from 'path';
 import { Repository } from 'typeorm';
 import { buildUniqueFileName } from '../../publish-draft/utils/upload-filename.util';
+import { CreateFlashHeadJobDto } from '../dto/create-flashhead-job.dto';
 import { CreateLiveSliceJobDto } from '../dto/create-live-slice-job.dto';
 import { CreateSubtitleJobDto } from '../dto/create-subtitle-job.dto';
 import { CreateTtsJobDto } from '../dto/create-tts-job.dto';
@@ -19,6 +20,7 @@ import { MediaJobType } from '../enums/media-job-type.enum';
 import { toMediaJobResponse } from '../utils/media-job.mapper';
 import { MediaAiStorageService } from './media-ai-storage.service';
 import { MediaJobQueueService } from './media-job-queue.service';
+import { FLASHHEAD_PARAM_DEFAULTS } from '../constants/flashhead-params.constant';
 
 const VIDEO_MIME_TYPES = new Set([
   'video/mp4',
@@ -52,6 +54,15 @@ const AUDIO_FILE_EXTENSIONS = new Set([
   '.m4a',
   '.aac',
 ]);
+
+const IMAGE_MIME_TYPES = new Set([
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'image/bmp',
+]);
+
+const IMAGE_FILE_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png', '.webp', '.bmp']);
 
 interface LiveSliceCartItemParam {
   id?: string;
@@ -282,6 +293,77 @@ export class MediaAiService {
     return toMediaJobResponse(job, (key) => this.storageService.getSignedUrl(key));
   }
 
+  async createFlashHeadJob(
+    userId: string,
+    portraitFile: Express.Multer.File,
+    audioFile: Express.Multer.File,
+    dto: CreateFlashHeadJobDto,
+  ): Promise<MediaJobResponseDto> {
+    this.assertImageFile(portraitFile);
+    this.assertAudioFile(audioFile);
+
+    const params: Record<string, unknown> = {
+      seed: dto.seed ?? FLASHHEAD_PARAM_DEFAULTS.seed,
+      useFaceCrop: dto.useFaceCrop ?? FLASHHEAD_PARAM_DEFAULTS.useFaceCrop,
+      audioEncodeMode:
+        dto.audioEncodeMode ?? FLASHHEAD_PARAM_DEFAULTS.audioEncodeMode,
+    };
+
+    const job = await this.jobRepository.save(
+      this.jobRepository.create({
+        userId,
+        type: MediaJobType.FLASHHEAD,
+        status: MediaJobStatus.PENDING,
+        params,
+      }),
+    );
+
+    const portraitFileName = buildUniqueFileName(
+      'portrait',
+      portraitFile.mimetype,
+      portraitFile.originalname,
+    );
+    const audioFileName = buildUniqueFileName(
+      'audio',
+      audioFile.mimetype,
+      audioFile.originalname,
+    );
+    const inputKey = this.storageService.buildInputKey(
+      userId,
+      job.id,
+      portraitFileName,
+    );
+    const audioInputKey = this.storageService.buildInputKey(
+      userId,
+      job.id,
+      audioFileName,
+    );
+    const outputKey = this.storageService.buildOutputKey(
+      userId,
+      job.id,
+      'talking-head.mp4',
+    );
+
+    await this.storageService.saveFile(inputKey, portraitFile.buffer);
+    await this.storageService.saveFile(audioInputKey, audioFile.buffer);
+    params.audioInputKey = audioInputKey;
+    job.inputKey = inputKey;
+    job.outputKey = outputKey;
+    job.params = params;
+    await this.jobRepository.save(job);
+
+    await this.queueService.enqueue({
+      jobId: job.id,
+      userId,
+      type: MediaJobType.FLASHHEAD,
+      inputKey,
+      outputKey,
+      params: job.params as Record<string, unknown>,
+    });
+
+    return toMediaJobResponse(job, (key) => this.storageService.getSignedUrl(key));
+  }
+
   async updateProgress(jobId: string, progress: number): Promise<void> {
     const job = await this.jobRepository.findOne({ where: { id: jobId } });
     if (!job) {
@@ -426,6 +508,10 @@ export class MediaAiService {
     if (typeof emoInputKey === 'string' && emoInputKey) {
       keys.add(emoInputKey);
     }
+    const audioInputKey = job.params?.audioInputKey;
+    if (typeof audioInputKey === 'string' && audioInputKey) {
+      keys.add(audioInputKey);
+    }
     for (const key of keys) {
       await this.storageService.deleteFile(key);
     }
@@ -442,6 +528,18 @@ export class MediaAiService {
       const ext = path.extname(file.originalname ?? '').toLowerCase();
       if (!AUDIO_FILE_EXTENSIONS.has(ext)) {
         throw new BadRequestException('不支持的音频格式');
+      }
+    }
+  }
+
+  private assertImageFile(file: Express.Multer.File): void {
+    if (!file?.buffer?.length) {
+      throw new BadRequestException('请上传人像图片');
+    }
+    if (!IMAGE_MIME_TYPES.has(file.mimetype)) {
+      const ext = path.extname(file.originalname ?? '').toLowerCase();
+      if (!IMAGE_FILE_EXTENSIONS.has(ext)) {
+        throw new BadRequestException('不支持的图片格式');
       }
     }
   }

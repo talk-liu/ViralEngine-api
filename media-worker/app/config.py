@@ -72,6 +72,14 @@ class Settings(BaseSettings):
         default=True,
         alias="INDEXTTS2_PRELOAD",
     )
+    # Docker GPU 模式下指向 /opt/venvs/indextts2/bin/python；本地留空则进程内推理
+    indextts2_python: str | None = Field(default=None, alias="INDEXTTS2_PYTHON")
+
+    # SoulX FlashHead Pro 口播数字人（见 FLASHHEAD_REPO_PATH）
+    flashhead_repo_path: str | None = Field(default=None, alias="FLASHHEAD_REPO_PATH")
+    flashhead_ckpt_dir: str | None = Field(default=None, alias="FLASHHEAD_CKPT_DIR")
+    flashhead_wav2vec_dir: str | None = Field(default=None, alias="FLASHHEAD_WAV2VEC_DIR")
+    flashhead_python: str | None = Field(default=None, alias="FLASHHEAD_PYTHON")
 
     @field_validator("storage_local_path")
     @classmethod
@@ -81,7 +89,15 @@ class Settings(BaseSettings):
             return str(path)
         return str((_ROOT_DIR / path).resolve())
 
-    @field_validator("indextts2_repo_path", "indextts2_model_dir")
+    @field_validator(
+        "indextts2_repo_path",
+        "indextts2_model_dir",
+        "flashhead_repo_path",
+        "flashhead_ckpt_dir",
+        "flashhead_wav2vec_dir",
+        "flashhead_python",
+        "indextts2_python",
+    )
     @classmethod
     def resolve_optional_absolute_path(cls, value: str | None) -> str | None:
         if not value:

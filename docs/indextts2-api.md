@@ -18,6 +18,19 @@ INDEXTTS2_REPO_PATH=D:/workbench/talk/IndexTTS2
 # INDEXTTS2_USE_CUDA_KERNEL=true
 ```
 
+## Docker 部署（GPU）
+
+生产推荐用 GPU 覆盖 compose，挂载宿主机模型目录、容器内双 venv 隔离依赖：
+
+```bash
+# .env 配置 INDEXTTS2_HOST_PATH、FLASHHEAD_HOST_PATH
+docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d --build
+```
+
+详见 [docker-media-worker-gpu.md](./docker-media-worker-gpu.md)。
+
+## 本地开发（非 Docker）
+
 3. **Python 环境**：TTS 必须使用 IndexTTS2 自带 venv（含 `torchaudio`、CUDA 版 `torch` 与匹配的 `transformers`）。首次需补装 worker 队列依赖：
 
 ```powershell
@@ -115,4 +128,6 @@ curl -X POST "https://127.0.0.1:3443/api/media-ai/jobs/tts" \
 
 ## Docker 说明
 
-容器内需挂载 IndexTTS2 目录并配置 `INDEXTTS2_REPO_PATH`；GPU 需 NVIDIA runtime。本地开发更推荐直接在宿主机用 IndexTTS2 venv 跑 `media-worker`。
+见 [docker-media-worker-gpu.md](./docker-media-worker-gpu.md)。容器内通过 `INDEXTTS2_PYTHON` 子进程推理，挂载宿主机 IndexTTS2 目录即可。
+
+本地开发推荐宿主机 IndexTTS2 venv + `scripts/start-worker.ps1`，可设 `INDEXTTS2_PRELOAD=true` 预热。

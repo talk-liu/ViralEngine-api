@@ -81,10 +81,7 @@ services:
       LLM_MODEL: ${LLM_MODEL:-qwen-plus}
     volumes:
       - storage_data:/app/storage
-      # IndexTTS2（宿主机路径示例，Windows 需用正斜杠或转义）
-      # - D:/workbench/talk/IndexTTS2:/opt/IndexTTS2:ro
-    # environment:
-    #   INDEXTTS2_REPO_PATH: /opt/IndexTTS2
+    # GPU + IndexTTS2 + FlashHead Pro 见 docker-compose.gpu.yml 与 docs/docker-media-worker-gpu.md
     depends_on:
       redis:
         condition: service_healthy
