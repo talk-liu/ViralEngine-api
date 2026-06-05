@@ -5,7 +5,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as path from 'path';
-import { Repository } from 'typeorm';
+import { FindOptionsWhere, Repository } from 'typeorm';
 import { buildUniqueFileName } from '../../publish-draft/utils/upload-filename.util';
 import { CreateFlashHeadJobDto } from '../dto/create-flashhead-job.dto';
 import { CreateLiveSliceJobDto } from '../dto/create-live-slice-job.dto';
@@ -13,6 +13,8 @@ import { CreateSubtitleJobDto } from '../dto/create-subtitle-job.dto';
 import { CreateTtsJobDto } from '../dto/create-tts-job.dto';
 import { CreateWatermarkJobDto } from '../dto/create-watermark-job.dto';
 import type { LiveSliceManifestDto } from '../dto/live-slice-manifest.dto';
+import type { ListMediaJobsQueryDto } from '../dto/list-media-jobs-query.dto';
+import type { MediaJobListResponseDto } from '../dto/media-job-list-response.dto';
 import type { MediaJobResponseDto } from '../dto/media-job-response.dto';
 import { MediaJob } from '../entities/media-job.entity';
 import { MediaJobStatus } from '../enums/media-job-status.enum';
@@ -101,6 +103,34 @@ export class MediaAiService {
     private readonly storageService: MediaAiStorageService,
     private readonly queueService: MediaJobQueueService,
   ) {}
+
+  async listJobs(
+    userId: string,
+    query: ListMediaJobsQueryDto,
+  ): Promise<MediaJobListResponseDto> {
+    const page = query.page ?? 1;
+    const pageSize = query.pageSize ?? 20;
+
+    const where: FindOptionsWhere<MediaJob> = { userId };
+    if (query.status) {
+      where.status = query.status;
+    }
+    if (query.type) {
+      where.type = query.type;
+    }
+
+    const [jobs, total] = await this.jobRepository.findAndCount({
+      where,
+      order: { createdAt: 'DESC' },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+    });
+
+    const signedUrl = (key: string) => this.storageService.getSignedUrl(key);
+    const items = jobs.map((job) => toMediaJobResponse(job, signedUrl));
+
+    return { items, total, page, pageSize };
+  }
 
   async getJob(userId: string, jobId: string): Promise<MediaJobResponseDto> {
     const job = await this.findOwnedJob(userId, jobId);

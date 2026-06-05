@@ -8,6 +8,7 @@ import {
   HttpStatus,
   Param,
   Post,
+  Query,
   UploadedFile,
   UploadedFiles,
   UseGuards,
@@ -44,6 +45,8 @@ import {
   buildIndexTts2ParamsSchema,
   IndexTts2ParamsSchemaDto,
 } from '../dto/indextts2-params-schema.dto';
+import { ListMediaJobsQueryDto } from '../dto/list-media-jobs-query.dto';
+import { MediaJobListResponseDto } from '../dto/media-job-list-response.dto';
 import { MediaJobResponseDto } from '../dto/media-job-response.dto';
 import { MediaAiService } from '../services/media-ai.service';
 
@@ -54,6 +57,20 @@ import { MediaAiService } from '../services/media-ai.service';
 @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
 export class MediaAiController {
   constructor(private readonly mediaAiService: MediaAiService) {}
+
+  @Get('jobs')
+  @ApiOperation({
+    summary: '任务中心：列出当前用户的媒体处理任务',
+    description:
+      '返回全部状态（pending / processing / completed / failed）。列表不含 live_slice manifest，详情请调 GET jobs/:jobId。',
+  })
+  @ApiOkResponse({ type: MediaJobListResponseDto })
+  listJobs(
+    @CurrentUser() user: AuthUser,
+    @Query() query: ListMediaJobsQueryDto,
+  ) {
+    return this.mediaAiService.listJobs(user.id, query);
+  }
 
   @Get('jobs/:jobId')
   @ApiOperation({ summary: '查询媒体处理任务状态' })
