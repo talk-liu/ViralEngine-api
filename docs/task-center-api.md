@@ -27,6 +27,7 @@
 | `live_slice` | `POST /media-ai/jobs/live-slice` | [live-slice-api.md](./live-slice-api.md) |
 | `tts` | `POST /media-ai/jobs/tts` | [indextts2-api.md](./indextts2-api.md) |
 | `flashhead` | `POST /media-ai/jobs/flashhead` | [flashhead-api.md](./flashhead-api.md) |
+| `latentsync` | `POST /media-ai/jobs/latentsync` | [latentsync-api.md](./latentsync-api.md) |
 
 ### 前置条件
 
@@ -87,7 +88,8 @@ type MediaJobType =
   | 'text2image'
   | 'live_slice'
   | 'tts'
-  | 'flashhead';
+  | 'flashhead'
+  | 'latentsync';
 
 type MediaJobStatus = 'pending' | 'processing' | 'completed' | 'failed';
 
@@ -135,6 +137,7 @@ interface ListMediaJobsQuery {
 | `live_slice` | 直播切片 | 多段 MP4 + 封面 + 字幕（见 manifest） |
 | `tts` | 语音合成 | WAV |
 | `flashhead` | 数字人口播 | MP4 |
+| `latentsync` | 视频对口型 | MP4 |
 | `text2image` | 文生图 | 图片（若后续开放） |
 
 ### 2.6 任务状态与 UI 建议

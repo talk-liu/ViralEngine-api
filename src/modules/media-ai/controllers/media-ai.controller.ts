@@ -33,6 +33,7 @@ import { CurrentUser } from '../../../auth/decorators/current-user.decorator';
 import type { AuthUser } from '../../../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
 import { CreateFlashHeadJobDto } from '../dto/create-flashhead-job.dto';
+import { CreateLatentSyncJobDto } from '../dto/create-latentsync-job.dto';
 import { CreateLiveSliceJobDto } from '../dto/create-live-slice-job.dto';
 import { CreateSubtitleJobDto } from '../dto/create-subtitle-job.dto';
 import { CreateTtsJobDto } from '../dto/create-tts-job.dto';
@@ -41,6 +42,10 @@ import {
   buildFlashHeadParamsSchema,
   FlashHeadParamsSchemaDto,
 } from '../dto/flashhead-params-schema.dto';
+import {
+  buildLatentSyncParamsSchema,
+  LatentSyncParamsSchemaDto,
+} from '../dto/latentsync-params-schema.dto';
 import {
   buildIndexTts2ParamsSchema,
   IndexTts2ParamsSchemaDto,
@@ -227,6 +232,56 @@ export class MediaAiController {
     return this.mediaAiService.createFlashHeadJob(
       user.id,
       portraitFile,
+      audioFile,
+      dto,
+    );
+  }
+
+  @Get('latentsync/params')
+  @ApiOperation({
+    summary: 'LatentSync 推理参数说明',
+    description:
+      '返回前端表单可用的字段名、默认值与 multipart 文件字段名（videoFile / audioFile）。',
+  })
+  @ApiOkResponse({ type: LatentSyncParamsSchemaDto })
+  getLatentSyncParams(): LatentSyncParamsSchemaDto {
+    return buildLatentSyncParamsSchema();
+  }
+
+  @Post('jobs/latentsync')
+  @UseInterceptors(
+    FileFieldsInterceptor([
+      { name: 'videoFile', maxCount: 1 },
+      { name: 'audioFile', maxCount: 1 },
+    ]),
+  )
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({
+    summary: '创建 LatentSync 视频对口型任务',
+    description:
+      '上传源视频 videoFile 与驱动音频 audioFile，生成口型同步后的 MP4。',
+  })
+  @ApiCreatedResponse({ type: MediaJobResponseDto })
+  createLatentSyncJob(
+    @CurrentUser() user: AuthUser,
+    @UploadedFiles()
+    files: {
+      videoFile?: Express.Multer.File[];
+      audioFile?: Express.Multer.File[];
+    },
+    @Body() dto: CreateLatentSyncJobDto,
+  ) {
+    const videoFile = files?.videoFile?.[0];
+    const audioFile = files?.audioFile?.[0];
+    if (!videoFile) {
+      throw new BadRequestException('请上传源视频 videoFile');
+    }
+    if (!audioFile) {
+      throw new BadRequestException('请上传驱动音频 audioFile');
+    }
+    return this.mediaAiService.createLatentSyncJob(
+      user.id,
+      videoFile,
       audioFile,
       dto,
     );

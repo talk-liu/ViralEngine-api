@@ -72,6 +72,10 @@ export default () => {
     },
     mediaAi: {
       queueKey: process.env.MEDIA_AI_QUEUE_KEY ?? 'media-ai:jobs',
+      queuePrefix:
+        process.env.MEDIA_AI_QUEUE_PREFIX ??
+        process.env.MEDIA_AI_QUEUE_KEY ??
+        'media-ai:jobs',
       workerSecret:
         process.env.MEDIA_WORKER_SECRET ?? 'change-me-media-worker-secret',
       outputRetentionHours: parseInt(

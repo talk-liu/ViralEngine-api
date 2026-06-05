@@ -1,6 +1,6 @@
 # GPU 媒体 Worker（Docker）
 
-在 Docker 中运行 **IndexTTS2 + FlashHead Pro**，模型与代码**挂载宿主机目录**（与本地开发一致，不把数 GB 权重打进镜像）。
+在 Docker 中运行 **IndexTTS2 + FlashHead Pro + LatentSync**，模型与代码**挂载宿主机目录**（与本地开发一致，不把数 GB 权重打进镜像）。
 
 ## 架构
 
@@ -10,18 +10,21 @@ flowchart TB
     W[worker venv<br/>uvicorn 队列]
     TTS[indextts2 venv<br/>子进程 TTS]
     FH[flashhead venv<br/>子进程 Pro]
+    LS[latentsync venv<br/>子进程对口型]
   end
   API[NestJS API] --> Redis[(Redis)]
   W --> Redis
   W -->|INDEXTTS2_PYTHON| TTS
   W -->|FLASHHEAD_PYTHON| FH
+  W -->|LATENTSYNC_PYTHON| LS
   TTS --> M1[/opt/indextts2 挂载/]
   FH --> M2[/opt/flashhead 挂载/]
+  LS --> M3[/opt/latentsync 挂载/]
   W --> Storage[(storage 卷)]
   API --> Storage
 ```
 
-- **三个 Python venv** 打在镜像里，避免 IndexTTS2 与 FlashHead 依赖冲突
+- **四个 Python venv** 打在镜像里，避免 IndexTTS2、FlashHead 与 LatentSync 依赖冲突
 - **权重与仓库** 运行时只读挂载，Lite 模型文件不会被加载
 
 ## 前置条件
@@ -30,6 +33,7 @@ flowchart TB
 2. 宿主机已准备好完整目录（含代码 + 权重）：
    - IndexTTS2：如 `D:\workbench\talk\IndexTTS2`（含 `checkpoints/`）
    - FlashHead：如 `D:\workbench\FlashHeadLite`（含 `generate_video.py`、`models/`）
+   - LatentSync：如 `D:\workbench\LatentSync`（含 `scripts/inference.py`、`checkpoints/latentsync_unet.pt`）
 3. 验证 GPU：`docker run --rm --gpus all nvidia/cuda:12.8.1-base-ubuntu22.04 nvidia-smi`
 
 ## 配置
@@ -40,6 +44,7 @@ flowchart TB
 # Docker GPU Worker 模型挂载（docker-compose.gpu.yml 使用）
 INDEXTTS2_HOST_PATH=D:/workbench/talk/IndexTTS2
 FLASHHEAD_HOST_PATH=D:/workbench/FlashHeadLite
+LATENTSYNC_HOST_PATH=D:/workbench/LatentSync
 
 MEDIA_WORKER_SECRET=change-me-media-worker-secret
 LLM_API_KEY=sk-xxx
@@ -50,6 +55,7 @@ Linux 服务器示例：
 ```env
 INDEXTTS2_HOST_PATH=/data/models/IndexTTS2
 FLASHHEAD_HOST_PATH=/data/models/FlashHeadLite
+LATENTSYNC_HOST_PATH=/data/models/LatentSync
 ```
 
 ## 启动
@@ -76,7 +82,7 @@ docker logs -f viralengine-media-worker-gpu
 | 镜像 | `Dockerfile` (slim CPU) | `Dockerfile.gpu` (CUDA) |
 | GPU | 无 | `--gpus all` |
 | TTS / 数字人 | 需自行挂载配置 | 内置双 venv + 子进程 |
-| 模型 | 不内置 | 挂载 `INDEXTTS2_HOST_PATH`、`FLASHHEAD_HOST_PATH` |
+| 模型 | 不内置 | 挂载 `INDEXTTS2_HOST_PATH`、`FLASHHEAD_HOST_PATH`、`LATENTSYNC_HOST_PATH` |
 
 **不要同时跑** CPU 版与 GPU 版两个 Worker（会抢同一 Redis 队列）。使用 GPU 覆盖文件时，只会构建 GPU 版 `media-worker`。
 

@@ -2,6 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type Redis from 'ioredis';
 import { REDIS_CLIENT } from '../../../redis/redis.constants';
+import { resolveMediaJobQueueKey } from '../constants/media-job-queue.constant';
 import { MediaJobType } from '../enums/media-job-type.enum';
 
 export interface MediaJobQueuePayload {
@@ -15,17 +16,22 @@ export interface MediaJobQueuePayload {
 
 @Injectable()
 export class MediaJobQueueService {
-  private readonly queueKey: string;
+  private readonly queuePrefix: string;
 
   constructor(
     @Inject(REDIS_CLIENT) private readonly redis: Redis,
     configService: ConfigService,
   ) {
-    this.queueKey =
-      configService.get<string>('mediaAi.queueKey') ?? 'media-ai:jobs';
+    this.queuePrefix =
+      configService.get<string>('mediaAi.queuePrefix') ?? 'media-ai:jobs';
+  }
+
+  resolveQueueKey(type: MediaJobType): string {
+    return resolveMediaJobQueueKey(type, this.queuePrefix);
   }
 
   async enqueue(payload: MediaJobQueuePayload): Promise<void> {
-    await this.redis.lpush(this.queueKey, JSON.stringify(payload));
+    const queueKey = this.resolveQueueKey(payload.type);
+    await this.redis.lpush(queueKey, JSON.stringify(payload));
   }
 }

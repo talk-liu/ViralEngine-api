@@ -7,6 +7,7 @@ from redis.exceptions import TimeoutError as RedisTimeoutError
 
 from app.config import settings
 from app.models import MediaJobPayload
+from app.queue_keys import resolve_worker_queue_keys
 from app.services.callback import CallbackService
 from app.services.storage import StorageService
 from app.workers.processor import JobProcessor
@@ -29,15 +30,19 @@ class QueueConsumer:
         )
         self.callback = CallbackService()
         self.processor = JobProcessor(StorageService(), self.callback)
+        self.queue_keys = resolve_worker_queue_keys()
         self._running = False
 
     async def start(self) -> None:
         self._running = True
-        logger.info("Queue consumer started, waiting for jobs on %s", settings.queue_key)
+        logger.info(
+            "Queue consumer started, waiting for jobs on %s",
+            ", ".join(self.queue_keys),
+        )
         while self._running:
             try:
                 item = await self.redis.brpop(
-                    settings.queue_key,
+                    self.queue_keys,
                     timeout=settings.worker_poll_timeout,
                 )
                 if not item:

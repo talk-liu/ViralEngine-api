@@ -21,6 +21,16 @@ class Settings(BaseSettings):
     redis_password: str = ""
     redis_db: int = 0
     queue_key: str = Field(default="media-ai:jobs", alias="MEDIA_AI_QUEUE_KEY")
+    media_ai_queue_prefix: str = Field(
+        default="media-ai:jobs",
+        alias="MEDIA_AI_QUEUE_PREFIX",
+    )
+    worker_queue_keys: str | None = Field(default=None, alias="WORKER_QUEUE_KEYS")
+    latentsync_server_url: str | None = Field(
+        default=None,
+        alias="LATENTSYNC_SERVER_URL",
+    )
+    latentsync_server_port: int = Field(default=8102, alias="LATENTSYNC_SERVER_PORT")
 
     storage_local_path: str = Field(default="storage", alias="STORAGE_LOCAL_PATH")
     api_base_url: str = Field(default="http://localhost:3000/api", alias="API_BASE_URL")
@@ -30,6 +40,14 @@ class Settings(BaseSettings):
     )
 
     worker_poll_timeout: int = Field(default=5, alias="WORKER_POLL_TIMEOUT")
+
+    gpu_lock_key: str = Field(default="media-ai:gpu:lock", alias="GPU_LOCK_KEY")
+    gpu_signal_key: str = Field(default="media-ai:gpu:signal", alias="GPU_SIGNAL_KEY")
+    gpu_lock_ttl_seconds: int = Field(default=7200, alias="GPU_LOCK_TTL_SECONDS")
+    gpu_wait_poll_seconds: float = Field(default=2.0, alias="GPU_WAIT_POLL_SECONDS")
+    gpu_flashhead_required_mb: int = Field(default=8000, alias="GPU_FLASHHEAD_REQUIRED_MB")
+    gpu_indextts2_required_mb: int = Field(default=6000, alias="GPU_INDEXTTS2_REQUIRED_MB")
+    gpu_latentsync_required_mb: int = Field(default=14000, alias="GPU_LATENTSYNC_REQUIRED_MB")
 
     whisper_model: str = Field(default="small", alias="WHISPER_MODEL")
     whisper_device: str = Field(default="cpu", alias="WHISPER_DEVICE")
@@ -68,10 +86,6 @@ class Settings(BaseSettings):
         default=False,
         alias="INDEXTTS2_USE_CUDA_KERNEL",
     )
-    indextts2_preload: bool = Field(
-        default=True,
-        alias="INDEXTTS2_PRELOAD",
-    )
     # Docker GPU 模式下指向 /opt/venvs/indextts2/bin/python；本地留空则进程内推理
     indextts2_python: str | None = Field(default=None, alias="INDEXTTS2_PYTHON")
 
@@ -80,6 +94,15 @@ class Settings(BaseSettings):
     flashhead_ckpt_dir: str | None = Field(default=None, alias="FLASHHEAD_CKPT_DIR")
     flashhead_wav2vec_dir: str | None = Field(default=None, alias="FLASHHEAD_WAV2VEC_DIR")
     flashhead_python: str | None = Field(default=None, alias="FLASHHEAD_PYTHON")
+
+    # LatentSync 视频对口型（见 LATENTSYNC_REPO_PATH）
+    latentsync_repo_path: str | None = Field(default=None, alias="LATENTSYNC_REPO_PATH")
+    latentsync_ckpt_path: str | None = Field(default=None, alias="LATENTSYNC_CKPT_PATH")
+    latentsync_unet_config: str | None = Field(
+        default=None,
+        alias="LATENTSYNC_UNET_CONFIG",
+    )
+    latentsync_python: str | None = Field(default=None, alias="LATENTSYNC_PYTHON")
 
     @field_validator("storage_local_path")
     @classmethod
@@ -97,6 +120,10 @@ class Settings(BaseSettings):
         "flashhead_wav2vec_dir",
         "flashhead_python",
         "indextts2_python",
+        "latentsync_repo_path",
+        "latentsync_ckpt_path",
+        "latentsync_unet_config",
+        "latentsync_python",
     )
     @classmethod
     def resolve_optional_absolute_path(cls, value: str | None) -> str | None:

@@ -5,4 +5,5 @@ export enum MediaJobType {
   LIVE_SLICE = 'live_slice',
   TTS = 'tts',
   FLASHHEAD = 'flashhead',
+  LATENTSYNC = 'latentsync',
 }

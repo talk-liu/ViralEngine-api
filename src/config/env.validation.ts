@@ -191,6 +191,10 @@ export class EnvironmentVariables {
 
   @IsOptional()
   @IsString()
+  MEDIA_AI_QUEUE_PREFIX?: string;
+
+  @IsOptional()
+  @IsString()
   MEDIA_WORKER_SECRET?: string;
 
   @IsOptional()

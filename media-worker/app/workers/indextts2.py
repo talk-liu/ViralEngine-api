@@ -13,7 +13,7 @@ from app.config import settings
 logger = logging.getLogger(__name__)
 
 _tts = None
-_INFER_SCRIPT = Path(__file__).resolve().parents[1] / "scripts" / "run_indextts2_infer.py"
+_INFER_SCRIPT = Path(__file__).resolve().parents[2] / "scripts" / "run_indextts2_infer.py"
 
 
 def _repo_root() -> Path:

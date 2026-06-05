@@ -1,4 +1,4 @@
-# GPU 媒体 Worker：IndexTTS2 + FlashHead Pro 双 venv，模型目录运行时挂载
+# GPU 媒体 Worker：IndexTTS2 + FlashHead Pro + LatentSync 三 venv，模型目录运行时挂载
 FROM nvidia/cuda:12.8.1-cudnn-runtime-ubuntu22.04
 
 ENV DEBIAN_FRONTEND=noninteractive \
@@ -49,6 +49,13 @@ RUN /opt/venvs/flashhead/bin/pip install --upgrade pip \
     && /opt/venvs/flashhead/bin/pip install torch==2.7.1 torchvision==0.22.1 --index-url ${TORCH_INDEX_URL} \
     && /opt/venvs/flashhead/bin/pip install -r /tmp/flashhead-requirements.txt
 
+# LatentSync 独立 venv
+RUN python3.11 -m venv /opt/venvs/latentsync
+COPY docker/latentsync-requirements.txt /tmp/latentsync-requirements.txt
+RUN /opt/venvs/latentsync/bin/pip install --upgrade pip \
+    && /opt/venvs/latentsync/bin/pip install torch==2.5.1 torchvision==0.20.1 --index-url ${TORCH_INDEX_URL} \
+    && /opt/venvs/latentsync/bin/pip install -r /tmp/latentsync-requirements.txt
+
 COPY app ./app
 COPY scripts ./scripts
 COPY docker/entrypoint.gpu.sh /entrypoint.gpu.sh
@@ -59,12 +66,15 @@ ENV INDEXTTS2_REPO_PATH=/opt/indextts2 \
     INDEXTTS2_DEVICE=cuda:0 \
     INDEXTTS2_USE_FP16=true \
     INDEXTTS2_USE_CUDA_KERNEL=false \
-    INDEXTTS2_PRELOAD=false \
     INDEXTTS2_PYTHON=/opt/venvs/indextts2/bin/python \
     FLASHHEAD_REPO_PATH=/opt/flashhead \
     FLASHHEAD_CKPT_DIR=/opt/flashhead/models/SoulX-FlashHead-1_3B \
     FLASHHEAD_WAV2VEC_DIR=/opt/flashhead/models/wav2vec2-base-960h \
     FLASHHEAD_PYTHON=/opt/venvs/flashhead/bin/python \
+    LATENTSYNC_REPO_PATH=/opt/latentsync \
+    LATENTSYNC_CKPT_PATH=/opt/latentsync/checkpoints/latentsync_unet.pt \
+    LATENTSYNC_UNET_CONFIG=/opt/latentsync/configs/unet/stage2_512.yaml \
+    LATENTSYNC_PYTHON=/opt/venvs/latentsync/bin/python \
     WHISPER_DEVICE=cuda \
     FUNASR_DEVICE=cuda
 

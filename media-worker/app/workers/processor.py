@@ -1,6 +1,7 @@
 import asyncio
 
 from app.models import MediaJobPayload
+from app.services.gpu_coordinator import gpu_slot, job_gpu_requirement
 from app.services.storage import StorageService
 
 
@@ -8,6 +9,14 @@ class JobProcessor:
     def __init__(self, storage: StorageService, callback=None) -> None:
         self.storage = storage
         self.callback = callback
+
+    async def _run_with_gpu_slot(self, payload: MediaJobPayload, runner) -> None:
+        required_mb = job_gpu_requirement(payload.type)
+        if required_mb is None:
+            await runner()
+            return
+        async with gpu_slot(payload.jobId, payload.type, required_mb):
+            await runner()
 
     async def process(self, payload: MediaJobPayload) -> None:
         if payload.type == "watermark":
@@ -27,6 +36,9 @@ class JobProcessor:
             return
         if payload.type == "flashhead":
             await self._process_flashhead(payload)
+            return
+        if payload.type == "latentsync":
+            await self._process_latentsync(payload)
             return
         raise ValueError(f"不支持的任务类型: {payload.type}")
 
@@ -86,13 +98,16 @@ class JobProcessor:
         emo_key = params.get("emoInputKey")
         emo_path = self.storage.resolve(emo_key) if isinstance(emo_key, str) and emo_key else None
 
-        await asyncio.to_thread(
-            synthesize_indextts2,
-            input_path,
-            output_path,
-            emo_audio_path=emo_path,
-            params=params,
-        )
+        async def _run() -> None:
+            await asyncio.to_thread(
+                synthesize_indextts2,
+                input_path,
+                output_path,
+                emo_audio_path=emo_path,
+                params=params,
+            )
+
+        await self._run_with_gpu_slot(payload, _run)
 
     async def _process_flashhead(self, payload: MediaJobPayload) -> None:
         from app.workers.flashhead import generate_flashhead
@@ -105,13 +120,39 @@ class JobProcessor:
             raise ValueError("flashhead 任务缺少 audioInputKey")
         audio_path = self.storage.resolve(audio_key)
 
-        await asyncio.to_thread(
-            generate_flashhead,
-            portrait_path,
-            audio_path,
-            output_path,
-            params=params,
-        )
+        async def _run() -> None:
+            await asyncio.to_thread(
+                generate_flashhead,
+                portrait_path,
+                audio_path,
+                output_path,
+                params=params,
+            )
+
+        await self._run_with_gpu_slot(payload, _run)
+
+    async def _process_latentsync(self, payload: MediaJobPayload) -> None:
+        from app.workers.latentsync import generate_latentsync
+
+        video_path = self.storage.resolve(payload.inputKey)
+        output_path = self.storage.ensure_parent(payload.outputKey)
+        params = payload.params
+        audio_key = params.get("audioInputKey")
+        if not isinstance(audio_key, str) or not audio_key:
+            raise ValueError("latentsync 任务缺少 audioInputKey")
+        audio_path = self.storage.resolve(audio_key)
+
+        async def _run() -> None:
+            await asyncio.to_thread(
+                generate_latentsync,
+                video_path,
+                audio_path,
+                output_path,
+                params=params,
+                job_id=payload.jobId,
+            )
+
+        await self._run_with_gpu_slot(payload, _run)
 
     async def _process_live_slice(self, payload: MediaJobPayload) -> None:
         from app.workers.live_slice import process_live_slice

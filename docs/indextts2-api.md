@@ -115,7 +115,7 @@ curl -X POST "https://127.0.0.1:3443/api/media-ai/jobs/tts" \
 
 | 现象 | 原因 | 建议 |
 |------|------|------|
-| 第一次很慢 | IndexTTS2 需加载多份大模型到 GPU（约 20–60s） | `INDEXTTS2_PRELOAD=true`，worker 启动时预热 |
+| 第一次很慢 | IndexTTS2 需加载多份大模型到 GPU（约 20–60s） | 配置 `INDEXTTS2_PYTHON` 子进程推理，首次任务会自动加载 |
 | 每次都很慢 | 默认 `numBeams=3` 做 beam search，约为 `1` 的数倍耗时 | 请求里传 `numBeams=1`（API 默认已改为 1） |
 | 长文本更慢 | 按 `maxTextTokensPerSegment` 分段，段数越多越慢 | 适当增大该值（如 160），或减少文本长度 |
 | 启动报错 1455 | Windows 页面文件不足，模型加载失败 | 增大虚拟内存或关闭占显存程序 |
@@ -130,4 +130,4 @@ curl -X POST "https://127.0.0.1:3443/api/media-ai/jobs/tts" \
 
 见 [docker-media-worker-gpu.md](./docker-media-worker-gpu.md)。容器内通过 `INDEXTTS2_PYTHON` 子进程推理，挂载宿主机 IndexTTS2 目录即可。
 
-本地开发推荐宿主机 IndexTTS2 venv + `scripts/start-worker.ps1`，可设 `INDEXTTS2_PRELOAD=true` 预热。
+本地开发推荐 `media-worker/.venv` 启动 worker（`scripts/start-worker.ps1`），并配置 `INDEXTTS2_PYTHON` 指向 IndexTTS2 venv，模型在首次 TTS 任务时按需加载。

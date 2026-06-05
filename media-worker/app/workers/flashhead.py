@@ -6,6 +6,7 @@ import sys
 from pathlib import Path
 
 from app.config import settings
+from app.services.gpu_coordinator import format_subprocess_error
 
 logger = logging.getLogger(__name__)
 
@@ -123,9 +124,11 @@ def generate_flashhead(
         errors="replace",
     )
     if result.returncode != 0:
-        stderr = (result.stderr or "").strip()
-        stdout = (result.stdout or "").strip()
-        detail = stderr or stdout or f"exit code {result.returncode}"
+        detail = format_subprocess_error(
+            stdout=result.stdout,
+            stderr=result.stderr,
+            returncode=result.returncode,
+        )
         raise RuntimeError(f"FlashHead 推理失败: {detail}")
 
     if not output_path.is_file():

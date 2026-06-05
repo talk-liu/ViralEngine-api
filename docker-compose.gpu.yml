@@ -31,16 +31,20 @@ services:
       INDEXTTS2_DEVICE: cuda:0
       INDEXTTS2_USE_FP16: "true"
       INDEXTTS2_USE_CUDA_KERNEL: "false"
-      INDEXTTS2_PRELOAD: "false"
       INDEXTTS2_PYTHON: /opt/venvs/indextts2/bin/python
       FLASHHEAD_REPO_PATH: /opt/flashhead
       FLASHHEAD_CKPT_DIR: /opt/flashhead/models/SoulX-FlashHead-1_3B
       FLASHHEAD_WAV2VEC_DIR: /opt/flashhead/models/wav2vec2-base-960h
       FLASHHEAD_PYTHON: /opt/venvs/flashhead/bin/python
+      LATENTSYNC_REPO_PATH: /opt/latentsync
+      LATENTSYNC_CKPT_PATH: /opt/latentsync/checkpoints/latentsync_unet.pt
+      LATENTSYNC_UNET_CONFIG: /opt/latentsync/configs/unet/stage2_512.yaml
+      LATENTSYNC_PYTHON: /opt/venvs/latentsync/bin/python
     volumes:
       - storage_data:/app/storage
       - ${INDEXTTS2_HOST_PATH:?请在 .env 设置 INDEXTTS2_HOST_PATH}:/opt/indextts2:ro
       - ${FLASHHEAD_HOST_PATH:?请在 .env 设置 FLASHHEAD_HOST_PATH}:/opt/flashhead:ro
+      - ${LATENTSYNC_HOST_PATH:?请在 .env 设置 LATENTSYNC_HOST_PATH}:/opt/latentsync:ro
     deploy:
       resources:
         reservations:

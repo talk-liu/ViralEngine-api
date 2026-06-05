@@ -8,6 +8,7 @@ import * as path from 'path';
 import { FindOptionsWhere, Repository } from 'typeorm';
 import { buildUniqueFileName } from '../../publish-draft/utils/upload-filename.util';
 import { CreateFlashHeadJobDto } from '../dto/create-flashhead-job.dto';
+import { CreateLatentSyncJobDto } from '../dto/create-latentsync-job.dto';
 import { CreateLiveSliceJobDto } from '../dto/create-live-slice-job.dto';
 import { CreateSubtitleJobDto } from '../dto/create-subtitle-job.dto';
 import { CreateTtsJobDto } from '../dto/create-tts-job.dto';
@@ -23,6 +24,7 @@ import { toMediaJobResponse } from '../utils/media-job.mapper';
 import { MediaAiStorageService } from './media-ai-storage.service';
 import { MediaJobQueueService } from './media-job-queue.service';
 import { FLASHHEAD_PARAM_DEFAULTS } from '../constants/flashhead-params.constant';
+import { LATENTSYNC_PARAM_DEFAULTS } from '../constants/latentsync-params.constant';
 
 const VIDEO_MIME_TYPES = new Set([
   'video/mp4',
@@ -386,6 +388,83 @@ export class MediaAiService {
       jobId: job.id,
       userId,
       type: MediaJobType.FLASHHEAD,
+      inputKey,
+      outputKey,
+      params: job.params as Record<string, unknown>,
+    });
+
+    return toMediaJobResponse(job, (key) => this.storageService.getSignedUrl(key));
+  }
+
+  async createLatentSyncJob(
+    userId: string,
+    videoFile: Express.Multer.File,
+    audioFile: Express.Multer.File,
+    dto: CreateLatentSyncJobDto,
+  ): Promise<MediaJobResponseDto> {
+    this.assertVideoFile(videoFile);
+    this.assertAudioFile(audioFile);
+
+    const params: Record<string, unknown> = {
+      seed: dto.seed ?? LATENTSYNC_PARAM_DEFAULTS.seed,
+      inferenceSteps:
+        dto.inferenceSteps ?? LATENTSYNC_PARAM_DEFAULTS.inferenceSteps,
+      guidanceScale:
+        dto.guidanceScale ?? LATENTSYNC_PARAM_DEFAULTS.guidanceScale,
+      enableDeepcache:
+        dto.enableDeepcache ?? LATENTSYNC_PARAM_DEFAULTS.enableDeepcache,
+      landmarkSmoothAlpha:
+        dto.landmarkSmoothAlpha ??
+        LATENTSYNC_PARAM_DEFAULTS.landmarkSmoothAlpha,
+    };
+
+    const job = await this.jobRepository.save(
+      this.jobRepository.create({
+        userId,
+        type: MediaJobType.LATENTSYNC,
+        status: MediaJobStatus.PENDING,
+        params,
+      }),
+    );
+
+    const videoFileName = buildUniqueFileName(
+      'video',
+      videoFile.mimetype,
+      videoFile.originalname,
+    );
+    const audioFileName = buildUniqueFileName(
+      'audio',
+      audioFile.mimetype,
+      audioFile.originalname,
+    );
+    const inputKey = this.storageService.buildInputKey(
+      userId,
+      job.id,
+      videoFileName,
+    );
+    const audioInputKey = this.storageService.buildInputKey(
+      userId,
+      job.id,
+      audioFileName,
+    );
+    const outputKey = this.storageService.buildOutputKey(
+      userId,
+      job.id,
+      'lipsync.mp4',
+    );
+
+    await this.storageService.saveFile(inputKey, videoFile.buffer);
+    await this.storageService.saveFile(audioInputKey, audioFile.buffer);
+    params.audioInputKey = audioInputKey;
+    job.inputKey = inputKey;
+    job.outputKey = outputKey;
+    job.params = params;
+    await this.jobRepository.save(job);
+
+    await this.queueService.enqueue({
+      jobId: job.id,
+      userId,
+      type: MediaJobType.LATENTSYNC,
       inputKey,
       outputKey,
       params: job.params as Record<string, unknown>,
