@@ -8,6 +8,7 @@ import { DatabaseModule } from './database/database.module';
 import { HealthModule } from './health/health.module';
 import { RedisModule } from './redis/redis.module';
 import { PlatformModule } from './modules/platform/platform.module';
+import { MaterialLibraryModule } from './modules/material-library/material-library.module';
 import { MediaAiModule } from './modules/media-ai/media-ai.module';
 import { PublishDraftModule } from './modules/publish-draft/publish-draft.module';
 import { PublishResultModule } from './modules/publish-result/publish-result.module';
@@ -55,6 +56,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
     PublishDraftModule,
     PublishResultModule,
     MediaAiModule,
+    MaterialLibraryModule,
   ],
   providers: [
     {

@@ -94,6 +94,24 @@ export default () => {
         10,
       ),
     },
+    materialLibrary: {
+      maxPerUser: parseInt(
+        process.env.MATERIAL_MAX_COUNT_PER_USER ?? '500',
+        10,
+      ),
+      imageMaxBytes: parseInt(
+        process.env.MATERIAL_IMAGE_MAX_BYTES ?? String(10 * 1024 * 1024),
+        10,
+      ),
+      audioMaxBytes: parseInt(
+        process.env.MATERIAL_AUDIO_MAX_BYTES ?? String(100 * 1024 * 1024),
+        10,
+      ),
+      videoMaxBytes: parseInt(
+        process.env.MATERIAL_VIDEO_MAX_BYTES ?? String(4 * 1024 * 1024 * 1024),
+        10,
+      ),
+    },
     oauth: {
       douyin: {
         clientKey: process.env.DOUYIN_CLIENT_KEY ?? '',
