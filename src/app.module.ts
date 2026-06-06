@@ -10,6 +10,7 @@ import { RedisModule } from './redis/redis.module';
 import { PlatformModule } from './modules/platform/platform.module';
 import { MediaAiModule } from './modules/media-ai/media-ai.module';
 import { PublishDraftModule } from './modules/publish-draft/publish-draft.module';
+import { PublishResultModule } from './modules/publish-result/publish-result.module';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 
 @Module({
@@ -52,6 +53,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
     HealthModule,
     PlatformModule,
     PublishDraftModule,
+    PublishResultModule,
     MediaAiModule,
   ],
   providers: [
