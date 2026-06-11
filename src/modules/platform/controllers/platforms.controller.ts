@@ -7,6 +7,7 @@ import {
   HttpStatus,
   Param,
   ParseEnumPipe,
+  Patch,
   Post,
   Put,
   UseGuards,
@@ -34,6 +35,7 @@ import {
   TokenRefreshResponseDto,
 } from '../dto/platform.dto';
 import { UpsertAccountNetworkDto } from '../dto/network.dto';
+import { UpdateAccountStatusDto } from '../dto/update-account-status.dto';
 import { PlatformId } from '../enums/platform-id.enum';
 import { PlatformNetworkService } from '../services/platform-network.service';
 import { PlatformService } from '../services/platform.service';
@@ -100,6 +102,22 @@ export class PlatformsController {
       platformId,
       dto.code,
       dto.bindSessionId,
+    );
+  }
+
+  @Patch('platform-accounts/:accountId/status')
+  @ApiOperation({ summary: '更新已绑定账号状态' })
+  @ApiOkResponse({ type: BoundAccountDto })
+  updateAccountStatus(
+    @CurrentUser() user: AuthUser,
+    @Param('accountId') accountId: string,
+    @Body() dto: UpdateAccountStatusDto,
+  ) {
+    return this.platformService.updateAccountStatus(
+      user.id,
+      accountId,
+      dto.status,
+      dto.lastError,
     );
   }
 

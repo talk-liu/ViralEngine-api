@@ -106,6 +106,68 @@ describe('PlatformService', () => {
     });
   });
 
+  describe('updateAccountStatus', () => {
+    const accountId = 'acc-1';
+    const baseAccount = {
+      id: accountId,
+      userId,
+      platformId: PlatformId.DOUYIN,
+      openId: 'openid-1',
+      nickname: '测试账号',
+      avatarUrl: '',
+      status: BindStatus.BOUND,
+      boundAt: new Date('2026-05-20T08:00:00.000Z'),
+      expiresAt: null,
+      lastError: null,
+      createdAt: new Date('2026-05-20T08:00:00.000Z'),
+    } as PlatformAccount;
+
+    it('应更新为 expired 并写入 lastError', async () => {
+      accountRepository.findOne.mockResolvedValue({ ...baseAccount });
+      accountRepository.save.mockImplementation(async (account) => account);
+
+      const result = await service.updateAccountStatus(
+        userId,
+        accountId,
+        BindStatus.EXPIRED,
+        '授权已过期',
+      );
+
+      expect(accountRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          status: BindStatus.EXPIRED,
+          lastError: '授权已过期',
+        }),
+      );
+      expect(result.status).toBe(BindStatus.EXPIRED);
+      expect(result.lastError).toBe('授权已过期');
+    });
+
+    it('恢复为 bound 时应清空 lastError', async () => {
+      accountRepository.findOne.mockResolvedValue({
+        ...baseAccount,
+        status: BindStatus.ERROR,
+        lastError: '发布失败',
+      });
+      accountRepository.save.mockImplementation(async (account) => account);
+
+      const result = await service.updateAccountStatus(
+        userId,
+        accountId,
+        BindStatus.BOUND,
+      );
+
+      expect(accountRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          status: BindStatus.BOUND,
+          lastError: null,
+        }),
+      );
+      expect(result.status).toBe(BindStatus.BOUND);
+      expect(result.lastError).toBeUndefined();
+    });
+  });
+
   describe('getBindSession', () => {
     it('无权访问应抛出 ForbiddenException', async () => {
       bindSessionRepository.findOne.mockResolvedValue({

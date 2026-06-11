@@ -312,6 +312,25 @@ export class PlatformService {
     await this.accountRepository.delete({ id: account.id });
   }
 
+  async updateAccountStatus(
+    userId: string,
+    accountId: string,
+    status: BindStatus.BOUND | BindStatus.EXPIRED | BindStatus.ERROR,
+    lastError?: string,
+  ): Promise<BoundAccountDto> {
+    const account = await this.findOwnedAccount(userId, accountId);
+
+    account.status = status;
+    if (status === BindStatus.BOUND) {
+      account.lastError = null;
+    } else if (lastError !== undefined) {
+      account.lastError = lastError;
+    }
+
+    const saved = await this.accountRepository.save(account);
+    return toBoundAccountDto(saved);
+  }
+
   async refreshAccountToken(userId: string, accountId: string) {
     const account = await this.findOwnedAccount(userId, accountId);
     const token = await this.tokenRepository.findOne({
