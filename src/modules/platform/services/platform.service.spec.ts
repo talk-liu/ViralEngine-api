@@ -48,6 +48,7 @@ describe('PlatformService', () => {
           useValue: {
             find: jest.fn().mockResolvedValue([]),
             findOne: jest.fn(),
+            create: jest.fn((data) => data),
             delete: jest.fn(),
             save: jest.fn(),
           },
@@ -81,6 +82,42 @@ describe('PlatformService', () => {
     service = module.get(PlatformService);
     accountRepository = module.get(getRepositoryToken(PlatformAccount));
     bindSessionRepository = module.get(getRepositoryToken(OAuthBindSession));
+  });
+
+  describe('createManualAccount', () => {
+    it('未开放平台应抛出 BadRequestException', async () => {
+      await expect(
+        service.createManualAccount(userId, PlatformId.BILIBILI, '测试账号'),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('应创建手动账号并返回 BoundAccountDto', async () => {
+      accountRepository.create.mockImplementation((data) => ({
+        id: 'acc-manual-1',
+        createdAt: new Date('2026-06-12T08:00:00.000Z'),
+        ...data,
+      }));
+      accountRepository.save.mockImplementation(async (account) => account);
+
+      const result = await service.createManualAccount(
+        userId,
+        PlatformId.DOUYIN,
+        ' 我的抖音号 ',
+      );
+
+      expect(accountRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId,
+          platformId: PlatformId.DOUYIN,
+          nickname: '我的抖音号',
+          status: BindStatus.BOUND,
+          openId: expect.stringMatching(/^manual_/),
+        }),
+      );
+      expect(result.nickname).toBe('我的抖音号');
+      expect(result.platformId).toBe(PlatformId.DOUYIN);
+      expect(result.status).toBe(BindStatus.BOUND);
+    });
   });
 
   describe('startBind', () => {

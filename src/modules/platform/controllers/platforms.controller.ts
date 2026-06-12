@@ -35,6 +35,7 @@ import {
   TokenRefreshResponseDto,
 } from '../dto/platform.dto';
 import { UpsertAccountNetworkDto } from '../dto/network.dto';
+import { CreateManualAccountDto } from '../dto/create-manual-account.dto';
 import { UpdateAccountStatusDto } from '../dto/update-account-status.dto';
 import { PlatformId } from '../enums/platform-id.enum';
 import { PlatformNetworkService } from '../services/platform-network.service';
@@ -102,6 +103,21 @@ export class PlatformsController {
       platformId,
       dto.code,
       dto.bindSessionId,
+    );
+  }
+
+  @Post('platform-accounts')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: '手动创建平台账号（无需 OAuth 授权）' })
+  @ApiOkResponse({ type: BoundAccountDto })
+  createManualAccount(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: CreateManualAccountDto,
+  ) {
+    return this.platformService.createManualAccount(
+      user.id,
+      dto.platformId,
+      dto.nickname,
     );
   }
 

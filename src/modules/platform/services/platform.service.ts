@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto';
 import {
   BadRequestException,
   ConflictException,
@@ -99,6 +100,38 @@ export class PlatformService {
     );
 
     return this.listPlatforms(userId);
+  }
+
+  async createManualAccount(
+    userId: string,
+    platformId: PlatformId,
+    nickname: string,
+  ): Promise<BoundAccountDto> {
+    const platform = PLATFORM_REGISTRY.find((p) => p.id === platformId);
+    if (!platform?.enabled) {
+      throw new BadRequestException('该平台暂未开放');
+    }
+
+    const trimmedNickname = nickname.trim();
+    if (!trimmedNickname) {
+      throw new BadRequestException('账号名称不能为空');
+    }
+
+    const now = new Date();
+    const account = this.accountRepository.create({
+      userId,
+      platformId,
+      openId: `manual_${randomUUID()}`,
+      nickname: trimmedNickname,
+      avatarUrl: '',
+      status: BindStatus.BOUND,
+      boundAt: now,
+      expiresAt: null,
+      lastError: null,
+    });
+
+    const saved = await this.accountRepository.save(account);
+    return toBoundAccountDto(saved);
   }
 
   async startBind(userId: string, platformId: PlatformId) {
