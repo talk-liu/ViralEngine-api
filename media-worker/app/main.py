@@ -7,6 +7,7 @@ from fastapi import FastAPI
 from app.config import settings
 from app.queue_consumer import QueueConsumer
 from app.queue_keys import resolve_worker_queue_keys
+from app.services.llm_client import llm_status
 
 logging.basicConfig(
     level=logging.INFO,
@@ -42,6 +43,7 @@ async def health():
         "queueKeys": resolve_worker_queue_keys(),
         "queuePrefix": settings.media_ai_queue_prefix,
         "latentsyncServerUrl": settings.latentsync_server_url,
+        "llm": llm_status(),
         "storagePath": settings.storage_local_path,
         "whisperModel": settings.whisper_model,
         "whisperDevice": settings.whisper_device,

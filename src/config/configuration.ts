@@ -83,6 +83,14 @@ export default () => {
         10,
       ),
     },
+    llm: {
+      apiBase:
+        process.env.LLM_API_BASE ??
+        'https://dashscope.aliyuncs.com/compatible-mode/v1',
+      apiKey: process.env.LLM_API_KEY ?? '',
+      model: process.env.LLM_MODEL ?? 'qwen-plus',
+      timeoutMs: parseInt(process.env.LLM_TIMEOUT ?? '120', 10) * 1000,
+    },
     publishDraft: {
       maxPerUser: parseInt(process.env.DRAFT_MAX_COUNT_PER_USER ?? '100', 10),
       videoMaxBytes: parseInt(

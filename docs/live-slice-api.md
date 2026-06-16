@@ -606,7 +606,7 @@ function ClipCard({ clip }: { clip: LiveSliceClip }) {
 | 问题 | 说明 |
 |------|------|
 | 任务一直 `pending` | Media Worker 未启动或未连上 Redis |
-| `clips` 为空或质量差 | 检查 Worker 是否配置 `LLM_API_KEY`；未配置时仅用规则引擎 |
+| `clips` 为空或质量差 | 检查 `media-worker/.env` 是否配置 `LLM_API_KEY`（见 [dashscope-llm-api.md](./dashscope-llm-api.md)）；未配置时仅用规则引擎 |
 | 处理很慢 | 长直播 + CPU 模式正常；生产建议 GPU |
 | 签名 URL 404 | URL 已过期，重新 `GET /jobs/:jobId` 刷新 |
 | 竖屏画面被裁切 | 默认 `9:16` 居中裁剪；横屏原片可传 `aspectRatio=original` |

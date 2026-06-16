@@ -35,6 +35,10 @@ import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
 import { CreateFlashHeadJobDto } from '../dto/create-flashhead-job.dto';
 import { CreateLatentSyncJobDto } from '../dto/create-latentsync-job.dto';
 import { CreateLiveSliceJobDto } from '../dto/create-live-slice-job.dto';
+import {
+  GenerateVideoDetailsDto,
+  GenerateVideoDetailsResponseDto,
+} from '../dto/generate-video-details.dto';
 import { CreateSubtitleJobDto } from '../dto/create-subtitle-job.dto';
 import { CreateTtsJobDto } from '../dto/create-tts-job.dto';
 import { CreateWatermarkJobDto } from '../dto/create-watermark-job.dto';
@@ -54,6 +58,7 @@ import { ListMediaJobsQueryDto } from '../dto/list-media-jobs-query.dto';
 import { MediaJobListResponseDto } from '../dto/media-job-list-response.dto';
 import { MediaJobResponseDto } from '../dto/media-job-response.dto';
 import { MediaAiService } from '../services/media-ai.service';
+import { LlmService } from '../services/llm.service';
 
 @ApiTags('Media AI')
 @Controller('media-ai')
@@ -61,7 +66,10 @@ import { MediaAiService } from '../services/media-ai.service';
 @ApiBearerAuth('access-token')
 @ApiUnauthorizedResponse({ type: ApiErrorResponseDto })
 export class MediaAiController {
-  constructor(private readonly mediaAiService: MediaAiService) {}
+  constructor(
+    private readonly mediaAiService: MediaAiService,
+    private readonly llmService: LlmService,
+  ) {}
 
   @Get('jobs')
   @ApiOperation({
@@ -100,6 +108,19 @@ export class MediaAiController {
     @Param('jobId') jobId: string,
   ) {
     return this.mediaAiService.removeJob(user.id, jobId);
+  }
+
+  @Post('generate/video-details')
+  @ApiOperation({
+    summary: '根据话题 AI 生成视频详情',
+    description:
+      '输入话题（及可选商品名、平台），生成标题、描述、话题、标签与卖货口播话术。需配置 LLM_API_KEY（通义千问）。',
+  })
+  @ApiOkResponse({ type: GenerateVideoDetailsResponseDto })
+  generateVideoDetails(
+    @Body() dto: GenerateVideoDetailsDto,
+  ): Promise<GenerateVideoDetailsResponseDto> {
+    return this.llmService.generateVideoDetails(dto);
   }
 
   @Post('jobs/watermark')

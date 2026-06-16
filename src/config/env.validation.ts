@@ -201,4 +201,21 @@ export class EnvironmentVariables {
   @IsInt()
   @Min(1)
   MEDIA_JOB_OUTPUT_RETENTION_HOURS?: number = 12;
+
+  @IsOptional()
+  @IsString()
+  LLM_API_BASE?: string;
+
+  @IsOptional()
+  @IsString()
+  LLM_API_KEY?: string;
+
+  @IsOptional()
+  @IsString()
+  LLM_MODEL?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(10)
+  LLM_TIMEOUT?: number;
 }

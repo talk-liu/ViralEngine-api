@@ -4,9 +4,7 @@ import json
 import logging
 from dataclasses import dataclass
 
-import httpx
-
-from app.config import settings
+from app.services.llm_client import chat_json, is_llm_configured
 from app.workers.asr import TranscriptSegment
 
 logger = logging.getLogger(__name__)
@@ -35,7 +33,7 @@ def analyze_highlights(
     max_clips: int,
     highlight_prompt: str | None = None,
 ) -> list[HighlightClip]:
-    if not settings.llm_api_key:
+    if not is_llm_configured():
         logger.warning("未配置 LLM_API_KEY，使用规则引擎生成切片")
         return _rule_based_highlights(
             segments,
@@ -70,6 +68,7 @@ def analyze_highlights(
         "优先选择：完整卖点闭环（痛点-产品-价格-行动号召）、限时优惠、产品演示、逼单话术。"
         f"每段时长 {min_duration}-{max_duration} 秒，最多 {max_clips} 段。"
         "边界必须对齐完整句子，不可切半句。相邻高分片段间隔小于 5 秒应合并。"
+        "为每段生成吸引人的短视频标题、卖货话术式描述、相关话题与标签。"
         "只输出 JSON，格式："
         '{"clips":[{"start":120.5,"end":175.2,"score":0.92,"reason":"...","productName":"...",'
         '"productId":"...","title":"...","description":"...","topics":["..."],"tags":["..."]}]}'
@@ -90,34 +89,23 @@ def analyze_highlights(
         ensure_ascii=False,
     )
 
-    payload = {
-        "model": settings.llm_model,
-        "messages": [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_content},
-        ],
-        "response_format": {"type": "json_object"},
-        "temperature": 0.2,
-    }
-
-    headers = {
-        "Authorization": f"Bearer {settings.llm_api_key}",
-        "Content-Type": "application/json",
-    }
-
-    with httpx.Client(timeout=settings.llm_timeout) as client:
-        response = client.post(
-            f"{settings.llm_api_base.rstrip('/')}/chat/completions",
-            headers=headers,
-            json=payload,
-        )
-        response.raise_for_status()
-        content = response.json()["choices"][0]["message"]["content"]
-
     try:
-        parsed = json.loads(content)
-    except json.JSONDecodeError as exc:
-        raise RuntimeError(f"LLM 返回非 JSON: {content[:200]}") from exc
+        parsed = chat_json(
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_content},
+            ],
+            temperature=0.2,
+        )
+    except RuntimeError as exc:
+        logger.warning("LLM 高光识别失败，回退规则引擎: %s", exc)
+        return _rule_based_highlights(
+            segments,
+            cart_items=cart_items,
+            min_duration=min_duration,
+            max_duration=max_duration,
+            max_clips=max_clips,
+        )
 
     clips_raw = parsed.get("clips", parsed if isinstance(parsed, list) else [])
     if not isinstance(clips_raw, list):

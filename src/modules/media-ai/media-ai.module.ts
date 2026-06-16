@@ -6,6 +6,7 @@ import { MediaAiInternalController } from './controllers/media-ai-internal.contr
 import { MediaJob } from './entities/media-job.entity';
 import { MediaWorkerGuard } from './guards/media-worker.guard';
 import { MediaAiService } from './services/media-ai.service';
+import { LlmService } from './services/llm.service';
 import { MediaAiStorageService } from './services/media-ai-storage.service';
 import { MediaJobCleanupService } from './services/media-job-cleanup.service';
 import { MediaJobQueueService } from './services/media-job-queue.service';
@@ -23,6 +24,7 @@ import { MediaJobQueueService } from './services/media-job-queue.service';
     MediaJobCleanupService,
     MediaJobQueueService,
     MediaWorkerGuard,
+    LlmService,
   ],
   exports: [MediaAiService],
 })

@@ -79,6 +79,7 @@ services:
       LLM_API_BASE: ${LLM_API_BASE:-https://dashscope.aliyuncs.com/compatible-mode/v1}
       LLM_API_KEY: ${LLM_API_KEY:-}
       LLM_MODEL: ${LLM_MODEL:-qwen-plus}
+      LLM_TIMEOUT: ${LLM_TIMEOUT:-120}
     volumes:
       - storage_data:/app/storage
     # GPU + IndexTTS2 + FlashHead Pro 见 docker-compose.gpu.yml 与 docs/docker-media-worker-gpu.md
