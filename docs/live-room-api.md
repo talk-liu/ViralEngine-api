@@ -39,6 +39,21 @@
 - 每个直播间配置一个**URL**（跳转到抖音/视频号等直播间）
 - 每个直播间配置**多条话术**，前端进入时随机选用
 
+### 缓存策略（Redis）
+
+用户端读接口（`GET /live-rooms/public`、`GET /live-rooms/:roomId/enter`）使用 **Redis 缓存 + 写时主动失效**：
+
+| 项目 | 说明 |
+|------|------|
+| 缓存 Key | `live-room:public`（列表）、`live-room:enter:{roomId}`（单个直播间） |
+| 读流程 | 先查 Redis → 未命中再查 MySQL → 写入 Redis |
+| 失效时机 | 管理员 `POST` / `PUT` / `DELETE` 成功后**立即删除**相关缓存 |
+| 兜底 TTL | 24 小时（防止漏删导致永久脏数据；正常靠写操作失效） |
+
+**话术更新后**：管理员保存成功 → 缓存立刻清除 → 用户下一次请求拿到最新话术。
+
+管理端读接口（`GET /live-rooms`、`GET /live-rooms/:id`）**不走缓存**，始终读数据库。
+
 ### 前置条件
 
 客户端需先完成用户登录，取得 JWT：
@@ -134,8 +149,13 @@ Authorization: Bearer <accessToken>
 
 #### 前端随机选话术
 
+每次发消息前请求本接口即可；服务端已做 Redis 缓存，话术变更后会自动失效。
+
 ```typescript
-const room = rooms[0];
+const room = await fetch(`/api/live-rooms/${roomId}/enter`, {
+  headers: { Authorization: `Bearer ${token}` },
+}).then(r => r.json());
+
 const script = room.scripts[Math.floor(Math.random() * room.scripts.length)];
 // 展示 script，点击跳转 room.url
 ```

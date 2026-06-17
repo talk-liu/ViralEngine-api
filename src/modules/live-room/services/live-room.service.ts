@@ -14,6 +14,7 @@ import {
   toLiveRoomEnterResponse,
   toLiveRoomPublicItem,
 } from '../utils/live-room.mapper';
+import { LiveRoomCacheService } from './live-room-cache.service';
 
 @Injectable()
 export class LiveRoomService {
@@ -22,6 +23,7 @@ export class LiveRoomService {
     private readonly roomRepository: Repository<LiveRoom>,
     @InjectRepository(LiveRoomScript)
     private readonly scriptRepository: Repository<LiveRoomScript>,
+    private readonly cacheService: LiveRoomCacheService,
   ) {}
 
   async listForAdmin() {
@@ -33,11 +35,18 @@ export class LiveRoomService {
   }
 
   async listPublic() {
+    const cached = await this.cacheService.getPublic();
+    if (cached) {
+      return cached;
+    }
+
     const rooms = await this.findAllWithScripts();
-    return {
+    const result = {
       items: rooms.map((room) => toLiveRoomPublicItem(room)),
       total: rooms.length,
     };
+    await this.cacheService.setPublic(result);
+    return result;
   }
 
   async getForAdmin(roomId: string) {
@@ -46,8 +55,15 @@ export class LiveRoomService {
   }
 
   async enter(roomId: string) {
+    const cached = await this.cacheService.getEnter(roomId);
+    if (cached) {
+      return cached;
+    }
+
     const room = await this.findRoomWithScripts(roomId);
-    return toLiveRoomEnterResponse(room);
+    const result = toLiveRoomEnterResponse(room);
+    await this.cacheService.setEnter(roomId, result);
+    return result;
   }
 
   async create(dto: SaveLiveRoomDto) {
@@ -61,6 +77,8 @@ export class LiveRoomService {
     });
 
     const saved = await this.roomRepository.save(room);
+    await this.cacheService.invalidatePublic();
+
     return toLiveRoomDetail(await this.findRoomWithScripts(saved.id));
   }
 
@@ -85,6 +103,8 @@ export class LiveRoomService {
       );
     });
 
+    await this.cacheService.invalidateOnWrite(roomId);
+
     return toLiveRoomDetail(await this.findRoomWithScripts(room.id));
   }
 
@@ -94,6 +114,7 @@ export class LiveRoomService {
       throw new NotFoundException('直播间不存在');
     }
     await this.roomRepository.remove(room);
+    await this.cacheService.invalidateOnWrite(roomId);
   }
 
   private async findAllWithScripts(): Promise<LiveRoom[]> {
