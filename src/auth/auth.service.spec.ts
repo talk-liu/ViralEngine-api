@@ -37,6 +37,7 @@ describe('AuthService', () => {
     passwordHash: 'hash',
     referralCode: 'ABCD1234',
     referrerId: null,
+    isAdmin: false,
     createdAt: new Date(),
     updatedAt: new Date(),
     referrer: null,

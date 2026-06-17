@@ -9,6 +9,7 @@ import { AuthService } from './auth.service';
 import { CaptchaService } from './services/captcha.service';
 import { SmsService } from './services/sms.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
+import { AdminGuard } from './guards/admin.guard';
 
 @Module({
   imports: [
@@ -27,7 +28,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, SmsService, CaptchaService, JwtStrategy],
-  exports: [JwtModule, PassportModule],
+  providers: [AuthService, SmsService, CaptchaService, JwtStrategy, AdminGuard],
+  exports: [JwtModule, PassportModule, AdminGuard],
 })
 export class AuthModule {}

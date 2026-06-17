@@ -30,11 +30,16 @@ describe('JwtStrategy', () => {
     userService.findById.mockResolvedValue({
       id: 'user-1',
       phone: '13800000000',
+      isAdmin: false,
     } as User);
 
     await expect(
       strategy.validate({ sub: 'user-1', phone: '13800000000' }),
-    ).resolves.toEqual({ id: 'user-1', phone: '13800000000' });
+    ).resolves.toEqual({
+      id: 'user-1',
+      phone: '13800000000',
+      isAdmin: false,
+    });
   });
 
   it('用户不存在时应抛出 UnauthorizedException', async () => {

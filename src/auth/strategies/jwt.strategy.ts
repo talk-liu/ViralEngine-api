@@ -29,6 +29,6 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new UnauthorizedException('用户不存在或登录已失效');
     }
 
-    return { id: user.id, phone: user.phone };
+    return { id: user.id, phone: user.phone, isAdmin: user.isAdmin };
   }
 }

@@ -97,6 +97,7 @@ export class AuthService {
       id: user.id,
       phone: user.phone,
       referralCode: user.referralCode,
+      isAdmin: user.isAdmin,
       createdAt: user.createdAt,
     };
   }
@@ -124,6 +125,7 @@ export class AuthService {
         id: user.id,
         phone: user.phone,
         referralCode: user.referralCode,
+        isAdmin: user.isAdmin,
       },
     };
   }

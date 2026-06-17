@@ -25,6 +25,9 @@ export class User {
   @Column({ name: 'referrer_id', type: 'varchar', length: 36, nullable: true })
   referrerId: string | null;
 
+  @Column({ name: 'is_admin', type: 'boolean', default: false })
+  isAdmin: boolean;
+
   @ManyToOne(() => User, { nullable: true })
   @JoinColumn({ name: 'referrer_id' })
   referrer: User | null;

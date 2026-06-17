@@ -9,6 +9,9 @@ export class UserBriefDto {
 
   @ApiProperty({ example: 'A1B2C3D4' })
   referralCode: string;
+
+  @ApiProperty({ example: false, description: '是否为管理员' })
+  isAdmin: boolean;
 }
 
 export class AuthTokenResponseDto {
