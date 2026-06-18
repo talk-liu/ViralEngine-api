@@ -42,7 +42,8 @@ services:
     ports:
       - '${PORT:-3000}:3000'
     env_file:
-      - .env
+      - path: .env
+        required: false
     environment:
       DB_HOST: mysql
       REDIS_HOST: redis
