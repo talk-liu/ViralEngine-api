@@ -45,4 +45,16 @@ export class CaptchaResponseDto {
 export class UserProfileDto extends UserBriefDto {
   @ApiProperty({ example: '2026-05-23T08:00:00.000Z' })
   createdAt: Date;
+
+  @ApiProperty({
+    example: 3,
+    description: '已绑定的平台账号数量（含所有状态）',
+  })
+  boundAccountCount: number;
+
+  @ApiProperty({
+    example: 48,
+    description: '发布列表批次总数（与 GET /publish-results 的 total 一致）',
+  })
+  publishResultCount: number;
 }

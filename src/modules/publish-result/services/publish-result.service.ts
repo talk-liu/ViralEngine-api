@@ -39,6 +39,10 @@ export class PublishResultService {
     private readonly dataSource: DataSource,
   ) {}
 
+  countUserBatches(userId: string): Promise<number> {
+    return this.batchRepository.count({ where: { userId } });
+  }
+
   async submit(
     userId: string,
     dto: SubmitPublishResultDto,

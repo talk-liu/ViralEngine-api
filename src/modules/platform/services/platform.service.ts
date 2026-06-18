@@ -47,6 +47,10 @@ export class PlatformService {
     private readonly oauthRegistry: OAuthProviderRegistry,
   ) {}
 
+  countUserAccounts(userId: string): Promise<number> {
+    return this.accountRepository.count({ where: { userId } });
+  }
+
   async listPlatforms(userId: string) {
     const [accounts, pendingSessions] = await Promise.all([
       this.accountRepository.find({

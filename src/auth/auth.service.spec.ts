@@ -6,6 +6,8 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
 import * as argon2 from 'argon2';
+import { PlatformService } from '../modules/platform/services/platform.service';
+import { PublishResultService } from '../modules/publish-result/services/publish-result.service';
 import { User } from '../modules/user/entities/user.entity';
 import { UserService } from '../modules/user/user.service';
 import { AuthService } from './auth.service';
@@ -30,6 +32,10 @@ describe('AuthService', () => {
   let smsService: jest.Mocked<Pick<SmsService, 'sendRegisterCode' | 'verifyRegisterCode'>>;
   let captchaService: jest.Mocked<Pick<CaptchaService, 'generate' | 'verify'>>;
   let jwtService: jest.Mocked<Pick<JwtService, 'sign'>>;
+  let platformService: jest.Mocked<Pick<PlatformService, 'countUserAccounts'>>;
+  let publishResultService: jest.Mocked<
+    Pick<PublishResultService, 'countUserBatches'>
+  >;
 
   const user: User = {
     id: 'user-1',
@@ -62,11 +68,19 @@ describe('AuthService', () => {
       verify: jest.fn(),
     };
     jwtService = { sign: jest.fn().mockReturnValue('token') };
+    platformService = {
+      countUserAccounts: jest.fn().mockResolvedValue(0),
+    };
+    publishResultService = {
+      countUserBatches: jest.fn().mockResolvedValue(0),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuthService,
         { provide: UserService, useValue: userService },
+        { provide: PlatformService, useValue: platformService },
+        { provide: PublishResultService, useValue: publishResultService },
         { provide: SmsService, useValue: smsService },
         { provide: CaptchaService, useValue: captchaService },
         { provide: JwtService, useValue: jwtService },
@@ -176,6 +190,22 @@ describe('AuthService', () => {
       await expect(service.getProfile('missing')).rejects.toThrow(
         UnauthorizedException,
       );
+    });
+
+    it('应返回用户信息与绑定账号、发布数量', async () => {
+      userService.findById.mockResolvedValue(user);
+      platformService.countUserAccounts.mockResolvedValue(5);
+      publishResultService.countUserBatches.mockResolvedValue(48);
+
+      const result = await service.getProfile('user-1');
+
+      expect(platformService.countUserAccounts).toHaveBeenCalledWith('user-1');
+      expect(publishResultService.countUserBatches).toHaveBeenCalledWith(
+        'user-1',
+      );
+      expect(result.boundAccountCount).toBe(5);
+      expect(result.publishResultCount).toBe(48);
+      expect(result.id).toBe(user.id);
     });
   });
 });

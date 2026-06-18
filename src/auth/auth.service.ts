@@ -7,6 +7,8 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as argon2 from 'argon2';
 import { randomBytes } from 'crypto';
+import { PlatformService } from '../modules/platform/services/platform.service';
+import { PublishResultService } from '../modules/publish-result/services/publish-result.service';
 import { User } from '../modules/user/entities/user.entity';
 import { UserService } from '../modules/user/user.service';
 import { LoginDto } from './dto/login.dto';
@@ -22,6 +24,8 @@ export class AuthService {
     private readonly captchaService: CaptchaService,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
+    private readonly platformService: PlatformService,
+    private readonly publishResultService: PublishResultService,
   ) {}
 
   async getCaptcha() {
@@ -93,12 +97,19 @@ export class AuthService {
       throw new UnauthorizedException('用户不存在或登录已失效');
     }
 
+    const [boundAccountCount, publishResultCount] = await Promise.all([
+      this.platformService.countUserAccounts(userId),
+      this.publishResultService.countUserBatches(userId),
+    ]);
+
     return {
       id: user.id,
       phone: user.phone,
       referralCode: user.referralCode,
       isAdmin: user.isAdmin,
       createdAt: user.createdAt,
+      boundAccountCount,
+      publishResultCount,
     };
   }
 
