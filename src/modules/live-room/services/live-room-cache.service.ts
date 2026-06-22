@@ -6,7 +6,8 @@ import {
   LiveRoomPublicListResponseDto,
 } from '../dto/live-room-response.dto';
 
-const PUBLIC_CACHE_KEY = 'live-room:public';
+const publicCacheKey = (inviteCode: string) =>
+  `live-room:public:${inviteCode.toUpperCase()}`;
 const enterCacheKey = (roomId: string) => `live-room:enter:${roomId}`;
 
 /** 兜底 TTL（秒）；正常靠写操作主动失效，避免漏删时永久脏数据 */
@@ -16,12 +17,19 @@ const SAFETY_TTL_SEC = 86400;
 export class LiveRoomCacheService {
   constructor(@Inject(REDIS_CLIENT) private readonly redis: Redis) {}
 
-  async getPublic(): Promise<LiveRoomPublicListResponseDto | null> {
-    return this.getJson<LiveRoomPublicListResponseDto>(PUBLIC_CACHE_KEY);
+  async getPublic(
+    inviteCode: string,
+  ): Promise<LiveRoomPublicListResponseDto | null> {
+    return this.getJson<LiveRoomPublicListResponseDto>(
+      publicCacheKey(inviteCode),
+    );
   }
 
-  async setPublic(data: LiveRoomPublicListResponseDto): Promise<void> {
-    await this.setJson(PUBLIC_CACHE_KEY, data);
+  async setPublic(
+    inviteCode: string,
+    data: LiveRoomPublicListResponseDto,
+  ): Promise<void> {
+    await this.setJson(publicCacheKey(inviteCode), data);
   }
 
   async getEnter(roomId: string): Promise<LiveRoomEnterResponseDto | null> {
@@ -35,14 +43,14 @@ export class LiveRoomCacheService {
     await this.setJson(enterCacheKey(roomId), data);
   }
 
-  /** 管理员写操作后调用：清 public 列表 + 指定直播间 enter 缓存 */
-  async invalidateOnWrite(roomId: string): Promise<void> {
-    await this.redis.del(PUBLIC_CACHE_KEY, enterCacheKey(roomId));
+  /** 写操作后调用：清对应邀请码 public 列表 + 指定直播间 enter 缓存 */
+  async invalidateOnWrite(roomId: string, inviteCode: string): Promise<void> {
+    await this.redis.del(publicCacheKey(inviteCode), enterCacheKey(roomId));
   }
 
-  /** 创建直播间后只需清 public 列表 */
-  async invalidatePublic(): Promise<void> {
-    await this.redis.del(PUBLIC_CACHE_KEY);
+  /** 创建直播间后只需清对应邀请码 public 列表 */
+  async invalidatePublic(inviteCode: string): Promise<void> {
+    await this.redis.del(publicCacheKey(inviteCode));
   }
 
   private async getJson<T>(key: string): Promise<T | null> {

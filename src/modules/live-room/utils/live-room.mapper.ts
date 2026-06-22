@@ -17,6 +17,7 @@ export function toLiveRoomDetail(room: LiveRoom): LiveRoomDetailDto {
     id: room.id,
     name: room.name,
     url: room.url,
+    inviteCode: room.inviteCode,
     scripts: scripts.map((script) => ({
       id: script.id,
       content: script.content,

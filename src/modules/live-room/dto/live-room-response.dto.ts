@@ -21,6 +21,9 @@ export class LiveRoomDetailDto {
   @ApiProperty()
   url: string;
 
+  @ApiProperty({ description: '邀请码，创建时自动生成' })
+  inviteCode: string;
+
   @ApiProperty({ type: [LiveRoomScriptDto] })
   scripts: LiveRoomScriptDto[];
 

@@ -1,9 +1,11 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { randomBytes } from 'crypto';
 import { Repository } from 'typeorm';
 import { SaveLiveRoomDto } from '../dto/save-live-room.dto';
 import { LiveRoomScript } from '../entities/live-room-script.entity';
@@ -34,18 +36,19 @@ export class LiveRoomService {
     };
   }
 
-  async listPublic() {
-    const cached = await this.cacheService.getPublic();
+  async listPublic(inviteCode: string) {
+    const normalizedInviteCode = inviteCode.trim().toUpperCase();
+    const cached = await this.cacheService.getPublic(normalizedInviteCode);
     if (cached) {
       return cached;
     }
 
-    const rooms = await this.findAllWithScripts();
+    const rooms = await this.findByInviteCodeWithScripts(normalizedInviteCode);
     const result = {
       items: rooms.map((room) => toLiveRoomPublicItem(room)),
       total: rooms.length,
     };
-    await this.cacheService.setPublic(result);
+    await this.cacheService.setPublic(normalizedInviteCode, result);
     return result;
   }
 
@@ -68,16 +71,18 @@ export class LiveRoomService {
 
   async create(dto: SaveLiveRoomDto) {
     const scripts = this.parseScripts(dto.scripts);
+    const inviteCode = await this.generateUniqueInviteCode();
     const room = this.roomRepository.create({
       name: dto.name.trim(),
       url: dto.url.trim(),
+      inviteCode,
       scripts: scripts.map((content, index) =>
         this.scriptRepository.create({ content, sortOrder: index }),
       ),
     });
 
     const saved = await this.roomRepository.save(room);
-    await this.cacheService.invalidatePublic();
+    await this.cacheService.invalidatePublic(saved.inviteCode);
 
     return toLiveRoomDetail(await this.findRoomWithScripts(saved.id));
   }
@@ -103,7 +108,7 @@ export class LiveRoomService {
       );
     });
 
-    await this.cacheService.invalidateOnWrite(roomId);
+    await this.cacheService.invalidateOnWrite(roomId, room.inviteCode);
 
     return toLiveRoomDetail(await this.findRoomWithScripts(room.id));
   }
@@ -114,7 +119,17 @@ export class LiveRoomService {
       throw new NotFoundException('直播间不存在');
     }
     await this.roomRepository.remove(room);
-    await this.cacheService.invalidateOnWrite(roomId);
+    await this.cacheService.invalidateOnWrite(roomId, room.inviteCode);
+  }
+
+  private async findByInviteCodeWithScripts(
+    inviteCode: string,
+  ): Promise<LiveRoom[]> {
+    return this.roomRepository.find({
+      where: { inviteCode },
+      relations: { scripts: true },
+      order: { createdAt: 'ASC' },
+    });
   }
 
   private async findAllWithScripts(): Promise<LiveRoom[]> {
@@ -141,5 +156,17 @@ export class LiveRoomService {
       throw new BadRequestException('至少需要一条话术');
     }
     return normalized;
+  }
+
+  private async generateUniqueInviteCode(): Promise<string> {
+    for (let attempt = 0; attempt < 10; attempt++) {
+      const code = randomBytes(4).toString('hex').toUpperCase();
+      const exists = await this.roomRepository.existsBy({ inviteCode: code });
+      if (!exists) {
+        return code;
+      }
+    }
+
+    throw new ConflictException('邀请码生成失败，请重试');
   }
 }

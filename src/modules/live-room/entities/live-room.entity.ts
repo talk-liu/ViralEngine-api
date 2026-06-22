@@ -19,6 +19,9 @@ export class LiveRoom {
   @Column({ type: 'varchar', length: 1024 })
   url: string;
 
+  @Column({ name: 'invite_code', type: 'varchar', length: 8, unique: true })
+  inviteCode: string;
+
   @OneToMany(() => LiveRoomScript, (script) => script.room, {
     cascade: true,
   })

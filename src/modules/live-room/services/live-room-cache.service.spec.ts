@@ -30,8 +30,11 @@ describe('LiveRoomCacheService', () => {
   it('getPublic 缓存命中时应返回解析结果', async () => {
     redis.get.mockResolvedValue(JSON.stringify({ items: [], total: 0 }));
 
-    await expect(service.getPublic()).resolves.toEqual({ items: [], total: 0 });
-    expect(redis.get).toHaveBeenCalledWith('live-room:public');
+    await expect(service.getPublic('ABC12345')).resolves.toEqual({
+      items: [],
+      total: 0,
+    });
+    expect(redis.get).toHaveBeenCalledWith('live-room:public:ABC12345');
   });
 
   it('setPublic 应写入 Redis 并设置兜底 TTL', async () => {
@@ -40,27 +43,27 @@ describe('LiveRoomCacheService', () => {
       total: 1,
     };
 
-    await service.setPublic(data);
+    await service.setPublic('abc12345', data);
 
     expect(redis.setex).toHaveBeenCalledWith(
-      'live-room:public',
+      'live-room:public:ABC12345',
       86400,
       JSON.stringify(data),
     );
   });
 
   it('invalidateOnWrite 应同时删除 public 与 enter 缓存', async () => {
-    await service.invalidateOnWrite('room-1');
+    await service.invalidateOnWrite('room-1', 'ABC12345');
 
     expect(redis.del).toHaveBeenCalledWith(
-      'live-room:public',
+      'live-room:public:ABC12345',
       'live-room:enter:room-1',
     );
   });
 
-  it('invalidatePublic 应只删除 public 缓存', async () => {
-    await service.invalidatePublic();
+  it('invalidatePublic 应只删除对应邀请码 public 缓存', async () => {
+    await service.invalidatePublic('abc12345');
 
-    expect(redis.del).toHaveBeenCalledWith('live-room:public');
+    expect(redis.del).toHaveBeenCalledWith('live-room:public:ABC12345');
   });
 });
