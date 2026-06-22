@@ -1,0 +1,41 @@
+# GPU 媒体 Worker 生产覆盖（配合 docker-compose.prod.yml）
+# 用法:
+#   docker compose -f docker-compose.prod.yml -f docker-compose.prod.gpu.yml pull
+#   docker compose -f docker-compose.prod.yml -f docker-compose.prod.gpu.yml up -d
+#
+# 前置: NVIDIA Container Toolkit + 宿主机模型目录（INDEXTTS2_HOST_PATH 等）
+
+services:
+  media-worker:
+    image: ${MEDIA_WORKER_GPU_IMAGE:?请在 .env 中设置 MEDIA_WORKER_GPU_IMAGE}
+    container_name: viralengine-media-worker-gpu
+    environment:
+      WHISPER_DEVICE: cuda
+      WHISPER_COMPUTE_TYPE: ${WHISPER_COMPUTE_TYPE:-float16}
+      FUNASR_DEVICE: cuda
+      INDEXTTS2_REPO_PATH: /opt/indextts2
+      INDEXTTS2_MODEL_DIR: /opt/indextts2/checkpoints
+      INDEXTTS2_DEVICE: cuda:0
+      INDEXTTS2_USE_FP16: 'true'
+      INDEXTTS2_USE_CUDA_KERNEL: 'false'
+      INDEXTTS2_PYTHON: /opt/venvs/indextts2/bin/python
+      FLASHHEAD_REPO_PATH: /opt/flashhead
+      FLASHHEAD_CKPT_DIR: /opt/flashhead/models/SoulX-FlashHead-1_3B
+      FLASHHEAD_WAV2VEC_DIR: /opt/flashhead/models/wav2vec2-base-960h
+      FLASHHEAD_PYTHON: /opt/venvs/flashhead/bin/python
+      LATENTSYNC_REPO_PATH: /opt/latentsync
+      LATENTSYNC_CKPT_PATH: /opt/latentsync/checkpoints/latentsync_unet.pt
+      LATENTSYNC_UNET_CONFIG: /opt/latentsync/configs/unet/stage2_512.yaml
+      LATENTSYNC_PYTHON: /opt/venvs/latentsync/bin/python
+    volumes:
+      - storage_data:/app/storage
+      - ${INDEXTTS2_HOST_PATH:?请在 .env 设置 INDEXTTS2_HOST_PATH}:/opt/indextts2:ro
+      - ${FLASHHEAD_HOST_PATH:?请在 .env 设置 FLASHHEAD_HOST_PATH}:/opt/flashhead:ro
+      - ${LATENTSYNC_HOST_PATH:?请在 .env 设置 LATENTSYNC_HOST_PATH}:/opt/latentsync:ro
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]

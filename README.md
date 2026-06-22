@@ -83,11 +83,13 @@ OpenAPI JSON：`http://localhost:3000/api/docs-json`
 | `THROTTLE_LIMIT` | 窗口内最大请求数 | `100` |
 | `CORS_ORIGINS` | 允许跨域来源（逗号分隔）；开发环境另自动放行 `localhost` / `wails.localhost` | 空 |
 
-Wails 等桌面端开发时，来源形如 `http://wails.localhost:34115`，开发模式下无需单独配置即可跨域；生产环境请在 `CORS_ORIGINS` 中写明前端地址。
+Wails 等桌面端来源形如 `http://wails.localhost:34115`，**无需**配置 `CORS_ORIGINS`（开发与生产均自动放行）。Web 前端在生产环境请在 `CORS_ORIGINS` 中写明地址，须与浏览器 `Origin` 请求头完全一致。
 
 ## 数据库迁移
 
-生产环境请关闭 `DB_SYNCHRONIZE`，使用 migration 管理表结构：
+生产环境请关闭 `DB_SYNCHRONIZE`，**只用 TypeORM migration 管理表结构**（不要用 `synchronize=true`，也不要手工改表）。
+
+### 开发环境
 
 ```bash
 # 生成迁移文件（示例）
@@ -99,6 +101,23 @@ npm run migration:run
 # 回滚上一次迁移
 npm run migration:revert
 ```
+
+### 生产环境（推荐）
+
+1. 本机构建新镜像并 push（migration 已编译进 `dist/`）
+2. 服务器 pull 新镜像后，**先跑 migration 再启动 API**：
+
+```bash
+cd /opt/viralengine
+sudo docker compose -f docker-compose.prod.api.yml pull
+sudo docker compose -f docker-compose.prod.api.yml up -d mysql redis
+sudo docker compose -f docker-compose.prod.api.yml --profile migrate run --rm migrate
+sudo docker compose -f docker-compose.prod.api.yml up -d
+```
+
+`migrate` 使用与 API 相同的镜像，在 Docker 内网连接 `mysql:3306`，**无需**把 MySQL 暴露到公网。
+
+**完整生产部署步骤见：[docs/production-deploy.md](docs/production-deploy.md)**
 
 ## 新增业务模块
 

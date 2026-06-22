@@ -1,0 +1,88 @@
+# 生产环境：仅 Node API + MySQL + Redis（不含 Python media-worker）
+# 用法:
+#   1. docker compose -f docker-compose.prod.api.yml up -d mysql redis
+#   2. docker compose -f docker-compose.prod.api.yml --profile migrate run --rm migrate
+#   3. docker compose -f docker-compose.prod.api.yml up -d
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: viralengine-mysql
+    restart: unless-stopped
+    # 生产不映射到宿主机，API 经 Docker 内网 mysql:3306 访问，避免端口冲突
+    # 本机跑 migration 时临时取消下面注释，跑完再注释回去：
+    # ports:
+    #   - '${DB_PORT:-3306}:3306'
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root}
+      MYSQL_DATABASE: ${DB_DATABASE:-viralengine}
+      MYSQL_USER: ${DB_USERNAME:-viralengine}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-viralengine}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ['CMD', 'mysqladmin', 'ping', '-h', 'localhost']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: viralengine-redis
+    restart: unless-stopped
+    # 生产不映射到宿主机，API 经 Docker 内网 redis:6379 访问
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    image: ${API_IMAGE:?请在 .env 中设置 API_IMAGE}
+    container_name: viralengine-api
+    restart: unless-stopped
+    # 宿主机端口用 API_HOST_PORT；容器内应用固定监听 3000
+    ports:
+      - '${API_HOST_PORT:-3000}:3000'
+    env_file:
+      - path: .env
+        required: true
+    environment:
+      DB_HOST: mysql
+      REDIS_HOST: redis
+      PORT: '3000'
+    volumes:
+      - storage_data:/app/storage
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  migrate:
+    image: ${API_IMAGE:?请在 .env 中设置 API_IMAGE}
+    env_file:
+      - path: .env
+        required: true
+    environment:
+      DB_HOST: mysql
+    command:
+      - node
+      - ./node_modules/typeorm/cli.js
+      - migration:run
+      - -d
+      - dist/database/data-source.js
+    depends_on:
+      mysql:
+        condition: service_healthy
+    profiles:
+      - migrate
+    restart: 'no'
+
+volumes:
+  mysql_data:
+  redis_data:
+  storage_data:

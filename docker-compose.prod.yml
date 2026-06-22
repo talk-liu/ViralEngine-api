@@ -1,0 +1,102 @@
+# 生产环境：仅拉取预构建镜像，服务器无需源代码
+# 用法:
+#   1. 在本机/CI 构建并推送镜像（见 scripts/build-push-images.*）
+#   2. 服务器放置本文件 + .env，设置 API_IMAGE / MEDIA_WORKER_IMAGE
+#   3. docker compose -f docker-compose.prod.yml pull
+#   4. docker compose -f docker-compose.prod.yml up -d
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: viralengine-mysql
+    restart: unless-stopped
+    ports:
+      - '${DB_PORT:-3306}:3306'
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root}
+      MYSQL_DATABASE: ${DB_DATABASE:-viralengine}
+      MYSQL_USER: ${DB_USERNAME:-viralengine}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-viralengine}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ['CMD', 'mysqladmin', 'ping', '-h', 'localhost']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: viralengine-redis
+    restart: unless-stopped
+    ports:
+      - '${REDIS_PORT:-6379}:6379'
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    image: ${API_IMAGE:?请在 .env 中设置 API_IMAGE，例如 registry.example.com/viralengine/api:1.0.0}
+    container_name: viralengine-api
+    restart: unless-stopped
+    ports:
+      - '${API_HOST_PORT:-3000}:3000'
+    env_file:
+      - path: .env
+        required: true
+    environment:
+      DB_HOST: mysql
+      REDIS_HOST: redis
+      PORT: '3000'
+    volumes:
+      - storage_data:/app/storage
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  media-worker:
+    image: ${MEDIA_WORKER_IMAGE:?请在 .env 中设置 MEDIA_WORKER_IMAGE，例如 registry.example.com/viralengine/media-worker:1.0.0}
+    container_name: viralengine-media-worker
+    restart: unless-stopped
+    ports:
+      - '${MEDIA_WORKER_PORT:-8000}:8000'
+    env_file:
+      - path: .env
+        required: true
+    environment:
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_DB: 0
+      MEDIA_AI_QUEUE_KEY: ${MEDIA_AI_QUEUE_KEY:-media-ai:jobs}
+      MEDIA_WORKER_SECRET: ${MEDIA_WORKER_SECRET:-change-me-media-worker-secret}
+      STORAGE_LOCAL_PATH: /app/storage
+      API_BASE_URL: http://api:3000/api
+      WHISPER_MODEL: ${WHISPER_MODEL:-small}
+      WHISPER_DEVICE: ${WHISPER_DEVICE:-cpu}
+      WHISPER_COMPUTE_TYPE: ${WHISPER_COMPUTE_TYPE:-int8}
+      HF_ENDPOINT: ${HF_ENDPOINT:-https://hf-mirror.com}
+      ASR_ENGINE: ${ASR_ENGINE:-auto}
+      FUNASR_DEVICE: ${FUNASR_DEVICE:-cpu}
+      LLM_API_BASE: ${LLM_API_BASE:-https://dashscope.aliyuncs.com/compatible-mode/v1}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_MODEL: ${LLM_MODEL:-qwen-plus}
+      LLM_TIMEOUT: ${LLM_TIMEOUT:-120}
+    volumes:
+      - storage_data:/app/storage
+    depends_on:
+      redis:
+        condition: service_healthy
+      api:
+        condition: service_started
+
+volumes:
+  mysql_data:
+  redis_data:
+  storage_data:

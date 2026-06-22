@@ -29,9 +29,19 @@ export class MediaJobCleanupService implements OnModuleInit, OnModuleDestroy {
   onModuleInit(): void {
     this.retentionHours =
       this.configService.get<number>('mediaAi.outputRetentionHours') ?? 12;
-    void this.purgeExpiredArtifacts();
+    void this.purgeExpiredArtifacts().catch((error: unknown) => {
+      this.logger.error(
+        'Failed to purge expired media job artifacts on startup',
+        error instanceof Error ? error.stack : String(error),
+      );
+    });
     this.intervalId = setInterval(() => {
-      void this.purgeExpiredArtifacts();
+      void this.purgeExpiredArtifacts().catch((error: unknown) => {
+        this.logger.error(
+          'Failed to purge expired media job artifacts',
+          error instanceof Error ? error.stack : String(error),
+        );
+      });
     }, CLEANUP_INTERVAL_MS);
   }
 

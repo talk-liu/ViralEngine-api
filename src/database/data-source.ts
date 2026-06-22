@@ -1,6 +1,8 @@
 import 'dotenv/config';
 import { DataSource } from 'typeorm';
 
+const isCompiled = __filename.endsWith('.js');
+
 export default new DataSource({
   type: 'mysql',
   host: process.env.DB_HOST,
@@ -8,7 +10,11 @@ export default new DataSource({
   username: process.env.DB_USERNAME,
   password: process.env.DB_PASSWORD,
   database: process.env.DB_DATABASE,
-  entities: ['src/**/*.entity.ts'],
-  migrations: ['src/database/migrations/*.ts'],
+  entities: isCompiled
+    ? ['dist/**/*.entity.js']
+    : ['src/**/*.entity.ts'],
+  migrations: isCompiled
+    ? ['dist/database/migrations/*.js']
+    : ['src/database/migrations/*.ts'],
   synchronize: false,
 });
