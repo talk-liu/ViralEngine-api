@@ -1,18 +1,20 @@
-# 生产环境：仅 Node API + MySQL + Redis（不含 Python media-worker）
-# 用法:
-#   1. docker compose -f docker-compose.prod.api.yml up -d mysql redis
+# 生产环境：Node API + Redis（MySQL 默认用 .env 中的远程库，如腾讯云 CDB）
+# 用法（远程 MySQL，默认）:
+#   1. docker compose -f docker-compose.prod.api.yml up -d redis
 #   2. docker compose -f docker-compose.prod.api.yml --profile migrate run --rm migrate
 #   3. docker compose -f docker-compose.prod.api.yml up -d
+#
+# 用法（Docker 内自建 MySQL，可选）:
+#   .env 中 DB_HOST=mysql、DB_PORT=3306，并加 --profile local-mysql
+#   docker compose -f docker-compose.prod.api.yml --profile local-mysql up -d mysql redis
 
 services:
   mysql:
+    profiles:
+      - local-mysql
     image: mysql:8.0
     container_name: viralengine-mysql
     restart: unless-stopped
-    # 生产不映射到宿主机，API 经 Docker 内网 mysql:3306 访问，避免端口冲突
-    # 本机跑 migration 时临时取消下面注释，跑完再注释回去：
-    # ports:
-    #   - '${DB_PORT:-3306}:3306'
     environment:
       MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root}
       MYSQL_DATABASE: ${DB_DATABASE:-viralengine}
@@ -51,14 +53,12 @@ services:
       - path: .env
         required: true
     environment:
-      DB_HOST: mysql
+      # DB_* 从 .env 读取（远程 CDB 或 local-mysql  profile 下的 mysql 服务名）
       REDIS_HOST: redis
       PORT: '3000'
     volumes:
       - storage_data:/app/storage
     depends_on:
-      mysql:
-        condition: service_healthy
       redis:
         condition: service_healthy
 
@@ -67,17 +67,12 @@ services:
     env_file:
       - path: .env
         required: true
-    environment:
-      DB_HOST: mysql
     command:
       - node
       - ./node_modules/typeorm/cli.js
       - migration:run
       - -d
       - dist/database/data-source.js
-    depends_on:
-      mysql:
-        condition: service_healthy
     profiles:
       - migrate
     restart: 'no'

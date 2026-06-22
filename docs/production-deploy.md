@@ -22,7 +22,7 @@ ECS 服务器 /opt/viralengine/
   ├── docker-compose.prod.api.yml
   └── .env
         ↓
-  viralengine-mysql   （Docker 内网 mysql:3306，不映射宿主机）
+  腾讯云 CDB MySQL   （.env 中 DB_HOST/DB_PORT，ECS 经外网/内网访问）
   viralengine-redis   （Docker 内网 redis:6379，不映射宿主机）
   viralengine-api     （宿主机 3003 → 容器 3000）
 ```
@@ -148,7 +148,7 @@ cd /opt/viralengine
 
 | 文件 | 说明 |
 |------|------|
-| `docker-compose.prod.api.yml` | 项目根目录，编排 MySQL + Redis + API + migrate |
+| `docker-compose.prod.api.yml` | 项目根目录，编排 Redis + API + migrate（MySQL 用远程 CDB） |
 | `.env` | 生产配置，参考 [.env.prod.example](../.env.prod.example) |
 
 从本机上传（示例）：
@@ -180,13 +180,13 @@ HTTPS_ENABLED=false
 SWAGGER_ENABLED=false
 DB_SYNCHRONIZE=false
 
-# MySQL（容器内必须用服务名 mysql）
-DB_HOST=mysql
-DB_PORT=3306
-DB_USERNAME=viralengine
+# MySQL（腾讯云 CDB；控制台确认库名，ECS IP 加入白名单）
+DB_HOST=sh-cdb-b4rg6szq.sql.tencentcdb.com
+DB_PORT=25350
+DB_USERNAME=ViralEngine1
 DB_PASSWORD=<强密码>
 DB_DATABASE=viralengine
-DB_ROOT_PASSWORD=<root强密码>
+DB_SYNCHRONIZE=false
 
 # Redis（容器内必须用服务名 redis）
 REDIS_HOST=redis
@@ -210,11 +210,16 @@ STORAGE_LOCAL_PATH=storage
 
 | 项 | 要求 |
 |----|------|
-| `DB_HOST` | 必须是 `mysql`，不能写 `localhost` |
-| `REDIS_HOST` | 必须是 `redis` |
+| `DB_HOST` | 腾讯云 CDB 连接地址（不是 `localhost`） |
+| `DB_PORT` | CDB 控制台端口（如 `25350`，不是默认 `3306`） |
+| `REDIS_HOST` | 必须是 `redis`（容器内 Redis 服务名） |
 | `DB_SYNCHRONIZE` | 必须是 `false` |
 | `HTTPS_ENABLED` | 必须是 `false`（HTTPS 交给 Nginx） |
-| `DB_PASSWORD` | 与 MySQL 容器首次初始化时一致；改密码需删数据卷重建 |
+| CDB 白名单 | 必须包含 ECS 公网 IP（或同 VPC 内网 IP） |
+
+### 可选：Docker 内自建 MySQL
+
+若不用远程 CDB，可在 `.env` 中改回 `DB_HOST=mysql`、`DB_PORT=3306`，并设置 `DB_ROOT_PASSWORD`，启动时加 `--profile local-mysql`。
 
 ---
 
@@ -231,11 +236,13 @@ sudo docker login --username=<ACR用户名> crpi-mm6tfxx66owmuulg.cn-shanghai.pe
 # 拉取镜像
 sudo docker compose -f docker-compose.prod.api.yml pull
 
-# 启动 MySQL + Redis
-sudo docker compose -f docker-compose.prod.api.yml up -d mysql redis
-sleep 15
+# 确认 ECS 能连 CDB（可选）
+nc -zv sh-cdb-b4rg6szq.sql.tencentcdb.com 25350
 
-# 初始化数据库表（空库执行；使用 API 镜像内的 TypeORM migration）
+# 启动 Redis
+sudo docker compose -f docker-compose.prod.api.yml up -d redis
+
+# 初始化数据库表（空库执行；使用 API 镜像内的 TypeORM migration，连远程 CDB）
 sudo docker compose -f docker-compose.prod.api.yml --profile migrate run --rm migrate
 
 # 启动 API
@@ -246,20 +253,17 @@ sudo docker exec viralengine-api wget -qO- http://127.0.0.1:3000/api/health
 curl http://127.0.0.1:3003/api/health
 ```
 
-### 空库重建（密码改乱或表结构混乱时）
+### 空库重建（表结构混乱时）
 
-```bash
-sudo docker compose -f docker-compose.prod.api.yml down
-sudo docker volume ls | grep mysql
-sudo docker volume rm viralengine_mysql_data   # 卷名以实际为准
-# 然后从 pull 开始重新执行
-```
+在腾讯云 CDB 控制台清空库或新建库后，重新执行 migration 即可（无需删 Docker 卷）。
 
 ### 验证 migration
 
+在 ECS 上（需安装 `mysql` 客户端）：
+
 ```bash
-sudo docker exec viralengine-mysql mysql -uviralengine -p'<DB_PASSWORD>' viralengine -e "SHOW TABLES;"
-sudo docker exec viralengine-mysql mysql -uviralengine -p'<DB_PASSWORD>' viralengine -e "SELECT * FROM migrations;"
+mysql -h sh-cdb-b4rg6szq.sql.tencentcdb.com -P 25350 -u ViralEngine1 -p viralengine -e "SHOW TABLES;"
+mysql -h sh-cdb-b4rg6szq.sql.tencentcdb.com -P 25350 -u ViralEngine1 -p viralengine -e "SELECT * FROM migrations;"
 ```
 
 ---
@@ -347,7 +351,8 @@ STORAGE_PUBLIC_BASE_URL=https://api.example.com/api
 | 现象 | 可能原因 | 处理 |
 |------|----------|------|
 | `Connection refused` / `Connection reset` | `PORT=3003` 误配在容器内 | 改 `PORT=3000`，`API_HOST_PORT=3003`，重建 API |
-| `Access denied for user` | `.env` 密码与 MySQL 卷不一致 | 对齐密码或删 `mysql_data` 卷重建 |
+| `Access denied for user` | `.env` 密码与 CDB 不一致 | 对齐 CDB 控制台账号密码 |
+| `connect ETIMEDOUT` / 连不上 CDB | ECS IP 未加入 CDB 白名单 | 在腾讯云 CDB 控制台添加 ECS 公网 IP |
 | `Table ... doesn't exist` | 未跑 migration | 执行 `--profile migrate run --rm migrate` |
 | `6379/3306 address already in use` | 宿主机端口冲突 | 生产 compose 已不映射 MySQL/Redis 端口，确认用最新 compose |
 | `Empty reply` / 容器 `Up N seconds` 很短 | API 启动崩溃 | `logs api --tail 100` 查具体错误 |
@@ -358,8 +363,8 @@ STORAGE_PUBLIC_BASE_URL=https://api.example.com/api
 ```bash
 sudo docker ps -a | grep viralengine
 sudo docker compose -f docker-compose.prod.api.yml logs api --tail 50
-grep -E '^(PORT|API_HOST_PORT|HTTPS_ENABLED|DB_HOST)=' /opt/viralengine/.env
-sudo docker exec viralengine-mysql mysql -uviralengine -p'<密码>' viralengine -e "SHOW TABLES;"
+grep -E '^(PORT|API_HOST_PORT|HTTPS_ENABLED|DB_HOST|DB_PORT)=' /opt/viralengine/.env
+nc -zv sh-cdb-b4rg6szq.sql.tencentcdb.com 25350
 ```
 
 ---
@@ -384,7 +389,8 @@ sudo docker exec viralengine-mysql mysql -uviralengine -p'<密码>' viralengine 
 - [ ] `.env` 中 `API_IMAGE` tag 正确
 - [ ] `PORT=3000`，`API_HOST_PORT=3003`
 - [ ] `HTTPS_ENABLED=false`，`DB_SYNCHRONIZE=false`
-- [ ] `DB_HOST=mysql`，`REDIS_HOST=redis`
+- [ ] `DB_HOST` / `DB_PORT` 指向腾讯云 CDB，ECS IP 已在 CDB 白名单
+- [ ] `REDIS_HOST=redis`
 - [ ] migration 已执行或表已存在
 - [ ] 安全组已放行 3003
 - [ ] `curl http://127.0.0.1:3003/api/health` 返回 JSON
