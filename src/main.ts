@@ -16,12 +16,7 @@ async function bootstrap() {
   app.useLogger(app.get(PinoLogger));
 
   const configService = app.get(ConfigService);
-  app.enableCors(
-    buildCorsOptions(
-      configService.get<string>('nodeEnv') ?? 'development',
-      configService.get<string>('cors.origins'),
-    ),
-  );
+  app.enableCors(buildCorsOptions());
 
   app.use(helmet());
   app.setGlobalPrefix('api');
