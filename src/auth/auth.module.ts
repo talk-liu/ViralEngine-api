@@ -10,6 +10,7 @@ import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { CaptchaService } from './services/captcha.service';
 import { SmsService } from './services/sms.service';
+import { TencentSmsProvider } from './services/sms/tencent-sms.provider';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { AdminGuard } from './guards/admin.guard';
 
@@ -32,7 +33,14 @@ import { AdminGuard } from './guards/admin.guard';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, SmsService, CaptchaService, JwtStrategy, AdminGuard],
+  providers: [
+    AuthService,
+    SmsService,
+    TencentSmsProvider,
+    CaptchaService,
+    JwtStrategy,
+    AdminGuard,
+  ],
   exports: [JwtModule, PassportModule, AdminGuard],
 })
 export class AuthModule {}

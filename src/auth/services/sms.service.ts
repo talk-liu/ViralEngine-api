@@ -8,6 +8,7 @@ import { ConfigService } from '@nestjs/config';
 import type Redis from 'ioredis';
 import { randomInt } from 'crypto';
 import { REDIS_CLIENT } from '../../redis/redis.constants';
+import { TencentSmsProvider } from './sms/tencent-sms.provider';
 
 @Injectable()
 export class SmsService {
@@ -16,6 +17,7 @@ export class SmsService {
   constructor(
     @Inject(REDIS_CLIENT) private readonly redis: Redis,
     private readonly configService: ConfigService,
+    private readonly tencentSms: TencentSmsProvider,
   ) {}
 
   private codeKey(phone: string) {
@@ -29,6 +31,7 @@ export class SmsService {
   async sendRegisterCode(phone: string): Promise<string> {
     const cooldownTtl = this.configService.get<number>('sms.cooldownTtl') ?? 60;
     const codeTtl = this.configService.get<number>('sms.codeTtl') ?? 300;
+    const isProd = this.configService.get<string>('nodeEnv') === 'production';
 
     const onCooldown = await this.redis.exists(this.cooldownKey(phone));
     if (onCooldown) {
@@ -37,13 +40,30 @@ export class SmsService {
 
     const code = randomInt(100000, 999999).toString();
 
+    if (isProd) {
+      if (!this.tencentSms.isConfigured()) {
+        throw new BadRequestException('短信服务未配置');
+      }
+      try {
+        await this.tencentSms.sendRegisterCode(phone, code);
+      } catch {
+        throw new BadRequestException('短信发送失败，请稍后重试');
+      }
+    } else if (this.tencentSms.isConfigured()) {
+      try {
+        await this.tencentSms.sendRegisterCode(phone, code);
+      } catch {
+        throw new BadRequestException('短信发送失败，请稍后重试');
+      }
+    } else {
+      this.logger.log(`[dev] 注册验证码 [${phone}]: ${code}`);
+    }
+
     await this.redis
       .multi()
       .set(this.codeKey(phone), code, 'EX', codeTtl)
       .set(this.cooldownKey(phone), '1', 'EX', cooldownTtl)
       .exec();
-
-    this.logger.log(`注册验证码 [${phone}]: ${code}`);
 
     return code;
   }

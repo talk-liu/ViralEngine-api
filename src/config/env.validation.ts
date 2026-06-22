@@ -90,6 +90,30 @@ export class EnvironmentVariables {
   SMS_COOLDOWN_TTL?: number = 60;
 
   @IsOptional()
+  @IsString()
+  TENCENT_SMS_SECRET_ID?: string;
+
+  @IsOptional()
+  @IsString()
+  TENCENT_SMS_SECRET_KEY?: string;
+
+  @IsOptional()
+  @IsString()
+  TENCENT_SMS_SDK_APP_ID?: string;
+
+  @IsOptional()
+  @IsString()
+  TENCENT_SMS_SIGN_NAME?: string;
+
+  @IsOptional()
+  @IsString()
+  TENCENT_SMS_TEMPLATE_ID?: string;
+
+  @IsOptional()
+  @IsString()
+  TENCENT_SMS_REGION?: string = 'ap-guangzhou';
+
+  @IsOptional()
   @IsInt()
   @Min(60)
   CAPTCHA_TTL?: number = 300;

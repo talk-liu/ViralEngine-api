@@ -53,6 +53,14 @@ export default () => {
     sms: {
       codeTtl: parseInt(process.env.SMS_CODE_TTL ?? '300', 10),
       cooldownTtl: parseInt(process.env.SMS_COOLDOWN_TTL ?? '60', 10),
+      tencent: {
+        secretId: process.env.TENCENT_SMS_SECRET_ID ?? '',
+        secretKey: process.env.TENCENT_SMS_SECRET_KEY ?? '',
+        sdkAppId: process.env.TENCENT_SMS_SDK_APP_ID ?? '',
+        signName: process.env.TENCENT_SMS_SIGN_NAME ?? '',
+        templateId: process.env.TENCENT_SMS_TEMPLATE_ID ?? '',
+        region: process.env.TENCENT_SMS_REGION ?? 'ap-guangzhou',
+      },
     },
     captcha: {
       ttl: parseInt(process.env.CAPTCHA_TTL ?? '300', 10),
