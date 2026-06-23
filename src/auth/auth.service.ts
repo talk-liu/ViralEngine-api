@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   UnauthorizedException,
@@ -13,6 +14,7 @@ import { User } from '../modules/user/entities/user.entity';
 import { UserService } from '../modules/user/user.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 import { CaptchaService } from './services/captcha.service';
 import { SmsService } from './services/sms.service';
 
@@ -44,6 +46,34 @@ export class AuthService {
       message: '验证码已发送',
       ...(isDev ? { debugCode: code } : {}),
     };
+  }
+
+  async sendForgotPasswordSmsCode(phone: string) {
+    if (!(await this.userService.existsByPhone(phone))) {
+      throw new BadRequestException('该手机号未注册');
+    }
+
+    const code = await this.smsService.sendResetPasswordCode(phone);
+    const isDev = this.configService.get<string>('nodeEnv') !== 'production';
+
+    return {
+      message: '验证码已发送',
+      ...(isDev ? { debugCode: code } : {}),
+    };
+  }
+
+  async resetPassword(dto: ResetPasswordDto) {
+    const user = await this.userService.findByPhone(dto.phone);
+    if (!user) {
+      throw new BadRequestException('该手机号未注册');
+    }
+
+    await this.smsService.verifyResetPasswordCode(dto.phone, dto.smsCode);
+
+    const passwordHash = await argon2.hash(dto.password);
+    await this.userService.updatePassword(user.id, passwordHash);
+
+    return { message: '密码重置成功' };
   }
 
   async register(dto: RegisterDto) {

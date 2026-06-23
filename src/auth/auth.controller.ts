@@ -9,6 +9,7 @@ import {
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
+  ApiBadRequestResponse,
   ApiConflictResponse,
   ApiCreatedResponse,
   ApiOkResponse,
@@ -26,6 +27,7 @@ import {
 } from './dto/auth-response.dto';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 import {
   SendSmsCodeDto,
   SendSmsCodeResponseDto,
@@ -47,6 +49,28 @@ export class AuthController {
   @ApiConflictResponse({ type: ApiErrorResponseDto, description: '手机号已注册' })
   sendSmsCode(@Body() dto: SendSmsCodeDto) {
     return this.authService.sendRegisterSmsCode(dto.phone);
+  }
+
+  @Post('forgot-password/sms-code')
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  @ApiOperation({ summary: '发送忘记密码短信验证码' })
+  @ApiOkResponse({ type: SendSmsCodeResponseDto })
+  @ApiBadRequestResponse({
+    type: ApiErrorResponseDto,
+    description: '手机号未注册',
+  })
+  sendForgotPasswordSmsCode(@Body() dto: SendSmsCodeDto) {
+    return this.authService.sendForgotPasswordSmsCode(dto.phone);
+  }
+
+  @Post('forgot-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: '重置密码' })
+  @ApiOkResponse({ description: '密码重置成功' })
+  @ApiBadRequestResponse({ type: ApiErrorResponseDto })
+  resetPassword(@Body() dto: ResetPasswordDto) {
+    return this.authService.resetPassword(dto);
   }
 
   @Post('register')

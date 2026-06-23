@@ -132,6 +132,7 @@ npx nest g service modules/user
 ## 外部接入文档
 
 - **[矩阵账号管理 API](docs/platform-accounts-api.md)** — 平台绑定、OAuth 流程、网络配置
+- **[忘记密码 API](docs/forgot-password-api.md)** — 短信验证码重置密码
 - **[用户注册接入文档](docs/register-integration.md)** — 两步注册流程、错误码
 - **[视频字幕识别 API](docs/subtitle-recognition-api.md)** — Whisper 异步字幕生成
 - **[视频加水印 API](docs/video-watermark-api.md)** — ffmpeg 文字水印
@@ -142,6 +143,8 @@ npx nest g service modules/user
 | 方法 | 路径 | 说明 |
 |------|------|------|
 | `POST` | `/api/auth/sms-code` | 发送注册短信验证码 |
+| `POST` | `/api/auth/forgot-password/sms-code` | 发送忘记密码短信验证码 |
+| `POST` | `/api/auth/forgot-password` | 重置密码 |
 | `POST` | `/api/auth/register` | 用户注册 |
 | `GET` | `/api/auth/captcha` | 获取登录图片验证码 |
 | `POST` | `/api/auth/login` | 用户登录 |
@@ -178,6 +181,21 @@ npx nest g service modules/user
 ```
 
 登录/注册成功返回 JWT，Swagger 中点击 **Authorize** 填入 `Bearer <token>` 即可访问 `/api/auth/me`。
+
+### 忘记密码流程
+
+1. `POST /api/auth/forgot-password/sms-code` → `{ "phone": "13800138000" }`
+2. 开发环境响应含 `debugCode`（生产环境走真实短信通道）
+3. `POST /api/auth/forgot-password`：
+
+```json
+{
+  "phone": "13800138000",
+  "smsCode": "123456",
+  "password": "Abc12345",
+  "confirmPassword": "Abc12345"
+}
+```
 
 ```typescript
 import { Inject, Injectable } from '@nestjs/common';

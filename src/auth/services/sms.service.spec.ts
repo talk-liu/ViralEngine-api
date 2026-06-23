@@ -128,4 +128,28 @@ describe('SmsService', () => {
       expect(redis.del).toHaveBeenCalled();
     });
   });
+
+  describe('sendResetPasswordCode', () => {
+    it('冷却期内应拒绝发送', async () => {
+      redis.exists.mockResolvedValue(1);
+      await expect(service.sendResetPasswordCode('13800000000')).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('应写入验证码并返回 code', async () => {
+      redis.exists.mockResolvedValue(0);
+      const code = await service.sendResetPasswordCode('13800000000');
+      expect(code).toMatch(/^\d{6}$/);
+      expect(redis.multi).toHaveBeenCalled();
+    });
+  });
+
+  describe('verifyResetPasswordCode', () => {
+    it('验证成功应删除验证码', async () => {
+      redis.get.mockResolvedValue('654321');
+      await service.verifyResetPasswordCode('13800000000', '654321');
+      expect(redis.del).toHaveBeenCalled();
+    });
+  });
 });

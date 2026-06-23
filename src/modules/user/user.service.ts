@@ -38,4 +38,8 @@ export class UserService {
     const user = this.userRepository.create(data);
     return this.userRepository.save(user);
   }
+
+  updatePassword(userId: string, passwordHash: string) {
+    return this.userRepository.update(userId, { passwordHash });
+  }
 }

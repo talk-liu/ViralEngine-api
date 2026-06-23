@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -27,9 +28,18 @@ describe('AuthService', () => {
       | 'findByReferralCode'
       | 'existsByReferralCode'
       | 'create'
+      | 'updatePassword'
     >
   >;
-  let smsService: jest.Mocked<Pick<SmsService, 'sendRegisterCode' | 'verifyRegisterCode'>>;
+  let smsService: jest.Mocked<
+    Pick<
+      SmsService,
+      | 'sendRegisterCode'
+      | 'verifyRegisterCode'
+      | 'sendResetPasswordCode'
+      | 'verifyResetPasswordCode'
+    >
+  >;
   let captchaService: jest.Mocked<Pick<CaptchaService, 'generate' | 'verify'>>;
   let jwtService: jest.Mocked<Pick<JwtService, 'sign'>>;
   let platformService: jest.Mocked<Pick<PlatformService, 'countUserAccounts'>>;
@@ -58,10 +68,13 @@ describe('AuthService', () => {
       findByReferralCode: jest.fn(),
       existsByReferralCode: jest.fn(),
       create: jest.fn(),
+      updatePassword: jest.fn(),
     };
     smsService = {
       sendRegisterCode: jest.fn().mockResolvedValue('123456'),
       verifyRegisterCode: jest.fn(),
+      sendResetPasswordCode: jest.fn().mockResolvedValue('654321'),
+      verifyResetPasswordCode: jest.fn(),
     };
     captchaService = {
       generate: jest.fn().mockResolvedValue({ captchaId: 'c1', image: 'img' }),
@@ -115,6 +128,57 @@ describe('AuthService', () => {
       userService.existsByPhone.mockResolvedValue(false);
       const result = await service.sendRegisterSmsCode('13800000000');
       expect(result.debugCode).toBe('123456');
+    });
+  });
+
+  describe('sendForgotPasswordSmsCode', () => {
+    it('未注册手机号应抛出 BadRequestException', async () => {
+      userService.existsByPhone.mockResolvedValue(false);
+      await expect(
+        service.sendForgotPasswordSmsCode('13800000000'),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('开发环境应返回 debugCode', async () => {
+      userService.existsByPhone.mockResolvedValue(true);
+      const result = await service.sendForgotPasswordSmsCode('13800000000');
+      expect(result.debugCode).toBe('654321');
+    });
+  });
+
+  describe('resetPassword', () => {
+    it('未注册手机号应抛出 BadRequestException', async () => {
+      userService.findByPhone.mockResolvedValue(null);
+      await expect(
+        service.resetPassword({
+          phone: '13800000000',
+          smsCode: '123456',
+          password: 'Pass1234!',
+          confirmPassword: 'Pass1234!',
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('应重置密码', async () => {
+      userService.findByPhone.mockResolvedValue(user);
+      (argon2.hash as jest.Mock).mockResolvedValue('new-hash');
+
+      const result = await service.resetPassword({
+        phone: '13800000000',
+        smsCode: '123456',
+        password: 'Pass1234!',
+        confirmPassword: 'Pass1234!',
+      });
+
+      expect(result.message).toBe('密码重置成功');
+      expect(smsService.verifyResetPasswordCode).toHaveBeenCalledWith(
+        '13800000000',
+        '123456',
+      );
+      expect(userService.updatePassword).toHaveBeenCalledWith(
+        'user-1',
+        'new-hash',
+      );
     });
   });
 
