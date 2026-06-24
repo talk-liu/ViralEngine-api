@@ -26,4 +26,16 @@ describe('HealthController (e2e)', () => {
       .get('/api/health')
       .expect(200);
   });
+
+  it('/api/app/release (GET)', () => {
+    return request(app.getHttpServer())
+      .get('/api/app/release')
+      .expect(200)
+      .expect((res) => {
+        expect(res.body).toMatchObject({
+          latestVersion: expect.any(String),
+          downloadUrl: expect.any(String),
+        });
+      });
+  });
 });

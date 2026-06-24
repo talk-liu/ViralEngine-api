@@ -242,4 +242,21 @@ export class EnvironmentVariables {
   @IsInt()
   @Min(10)
   LLM_TIMEOUT?: number;
+
+  @IsOptional()
+  @IsString()
+  APP_LATEST_VERSION?: string;
+
+  @IsOptional()
+  @IsString()
+  APP_DOWNLOAD_URL?: string;
+
+  @IsOptional()
+  @IsString()
+  APP_RELEASE_NOTES?: string;
+
+  @Transform(({ value }) => value === 'true' || value === true)
+  @IsBoolean()
+  @IsOptional()
+  APP_FORCE_UPDATE?: boolean;
 }

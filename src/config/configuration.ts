@@ -128,6 +128,12 @@ export default () => {
         10,
       ),
     },
+    appRelease: {
+      latestVersion: process.env.APP_LATEST_VERSION ?? '1.0.0',
+      downloadUrl: process.env.APP_DOWNLOAD_URL ?? '',
+      releaseNotes: process.env.APP_RELEASE_NOTES ?? '',
+      forceUpdate: process.env.APP_FORCE_UPDATE === 'true',
+    },
     oauth: {
       douyin: {
         clientKey: process.env.DOUYIN_CLIENT_KEY ?? '',
