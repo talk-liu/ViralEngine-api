@@ -368,6 +368,23 @@ export class PlatformService {
     return toBoundAccountDto(saved);
   }
 
+  async updateAccountNickname(
+    userId: string,
+    accountId: string,
+    nickname: string,
+  ): Promise<BoundAccountDto> {
+    const trimmedNickname = nickname.trim();
+    if (!trimmedNickname) {
+      throw new BadRequestException('账号名称不能为空');
+    }
+
+    const account = await this.findOwnedAccount(userId, accountId);
+    account.nickname = trimmedNickname;
+
+    const saved = await this.accountRepository.save(account);
+    return toBoundAccountDto(saved);
+  }
+
   async refreshAccountToken(userId: string, accountId: string) {
     const account = await this.findOwnedAccount(userId, accountId);
     const token = await this.tokenRepository.findOne({

@@ -143,6 +143,45 @@ describe('PlatformService', () => {
     });
   });
 
+  describe('updateAccountNickname', () => {
+    const accountId = 'acc-1';
+    const baseAccount = {
+      id: accountId,
+      userId,
+      platformId: PlatformId.DOUYIN,
+      openId: 'openid-1',
+      nickname: '测试账号',
+      avatarUrl: '',
+      status: BindStatus.BOUND,
+      boundAt: new Date('2026-05-20T08:00:00.000Z'),
+      expiresAt: null,
+      lastError: null,
+      createdAt: new Date('2026-05-20T08:00:00.000Z'),
+    } as PlatformAccount;
+
+    it('空名称应抛出 BadRequestException', async () => {
+      await expect(
+        service.updateAccountNickname(userId, accountId, '   '),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('应更新备注名并返回 BoundAccountDto', async () => {
+      accountRepository.findOne.mockResolvedValue({ ...baseAccount });
+      accountRepository.save.mockImplementation(async (account) => account);
+
+      const result = await service.updateAccountNickname(
+        userId,
+        accountId,
+        ' 新备注名 ',
+      );
+
+      expect(accountRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({ nickname: '新备注名' }),
+      );
+      expect(result.nickname).toBe('新备注名');
+    });
+  });
+
   describe('updateAccountStatus', () => {
     const accountId = 'acc-1';
     const baseAccount = {

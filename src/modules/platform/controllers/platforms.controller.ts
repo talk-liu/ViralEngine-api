@@ -36,6 +36,7 @@ import {
 } from '../dto/platform.dto';
 import { UpsertAccountNetworkDto } from '../dto/network.dto';
 import { CreateManualAccountDto } from '../dto/create-manual-account.dto';
+import { UpdateAccountNicknameDto } from '../dto/update-account-nickname.dto';
 import { UpdateAccountStatusDto } from '../dto/update-account-status.dto';
 import { PlatformId } from '../enums/platform-id.enum';
 import { PlatformNetworkService } from '../services/platform-network.service';
@@ -134,6 +135,21 @@ export class PlatformsController {
       accountId,
       dto.status,
       dto.lastError,
+    );
+  }
+
+  @Patch('platform-accounts/:accountId/nickname')
+  @ApiOperation({ summary: '更新已绑定账号备注名' })
+  @ApiOkResponse({ type: BoundAccountDto })
+  updateAccountNickname(
+    @CurrentUser() user: AuthUser,
+    @Param('accountId') accountId: string,
+    @Body() dto: UpdateAccountNicknameDto,
+  ) {
+    return this.platformService.updateAccountNickname(
+      user.id,
+      accountId,
+      dto.nickname,
     );
   }
 
