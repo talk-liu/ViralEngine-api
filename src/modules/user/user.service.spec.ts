@@ -19,6 +19,8 @@ describe('UserService', () => {
             exists: jest.fn(),
             create: jest.fn(),
             save: jest.fn(),
+            increment: jest.fn(),
+            update: jest.fn(),
           },
         },
       ],
@@ -51,5 +53,19 @@ describe('UserService', () => {
 
     const result = await service.create({ phone: '13800000000' });
     expect(result).toBe(user);
+  });
+
+  it('incrementTokenVersion 应递增并返回新版本号', async () => {
+    repository.increment.mockResolvedValue(undefined);
+    repository.findOne.mockResolvedValue({ tokenVersion: 3 } as User);
+
+    const result = await service.incrementTokenVersion('u1');
+
+    expect(repository.increment).toHaveBeenCalledWith(
+      { id: 'u1' },
+      'tokenVersion',
+      1,
+    );
+    expect(result).toBe(3);
   });
 });

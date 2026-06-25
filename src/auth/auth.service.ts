@@ -72,6 +72,7 @@ export class AuthService {
 
     const passwordHash = await argon2.hash(dto.password);
     await this.userService.updatePassword(user.id, passwordHash);
+    await this.userService.incrementTokenVersion(user.id);
 
     return { message: '密码重置成功' };
   }
@@ -102,7 +103,7 @@ export class AuthService {
       referrerId,
     });
 
-    return this.buildAuthResponse(user);
+    return await this.buildAuthResponse(user);
   }
 
   async login(dto: LoginDto) {
@@ -118,7 +119,7 @@ export class AuthService {
       throw new UnauthorizedException('手机号或密码错误');
     }
 
-    return this.buildAuthResponse(user);
+    return await this.buildAuthResponse(user);
   }
 
   async getProfile(userId: string) {
@@ -155,8 +156,9 @@ export class AuthService {
     throw new ConflictException('推荐码生成失败，请重试');
   }
 
-  private buildAuthResponse(user: User) {
-    const payload = { sub: user.id, phone: user.phone };
+  private async buildAuthResponse(user: User) {
+    const tokenVersion = await this.userService.incrementTokenVersion(user.id);
+    const payload = { sub: user.id, phone: user.phone, tv: tokenVersion };
 
     return {
       accessToken: this.jwtService.sign(payload),

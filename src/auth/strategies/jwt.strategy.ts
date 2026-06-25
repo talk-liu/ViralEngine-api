@@ -8,6 +8,7 @@ import { AuthUser } from '../decorators/current-user.decorator';
 export interface JwtPayload {
   sub: string;
   phone: string;
+  tv?: number;
 }
 
 @Injectable()
@@ -27,6 +28,11 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     const user = await this.userService.findById(payload.sub);
     if (!user) {
       throw new UnauthorizedException('用户不存在或登录已失效');
+    }
+
+    const tokenVersion = payload.tv ?? 0;
+    if (tokenVersion !== user.tokenVersion) {
+      throw new UnauthorizedException('账号已在其他设备登录');
     }
 
     return { id: user.id, phone: user.phone, isAdmin: user.isAdmin };

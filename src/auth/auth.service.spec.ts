@@ -29,6 +29,7 @@ describe('AuthService', () => {
       | 'existsByReferralCode'
       | 'create'
       | 'updatePassword'
+      | 'incrementTokenVersion'
     >
   >;
   let smsService: jest.Mocked<
@@ -54,6 +55,7 @@ describe('AuthService', () => {
     referralCode: 'ABCD1234',
     referrerId: null,
     isAdmin: false,
+    tokenVersion: 0,
     createdAt: new Date(),
     updatedAt: new Date(),
     referrer: null,
@@ -69,6 +71,7 @@ describe('AuthService', () => {
       existsByReferralCode: jest.fn(),
       create: jest.fn(),
       updatePassword: jest.fn(),
+      incrementTokenVersion: jest.fn().mockResolvedValue(1),
     };
     smsService = {
       sendRegisterCode: jest.fn().mockResolvedValue('123456'),
@@ -179,6 +182,7 @@ describe('AuthService', () => {
         'user-1',
         'new-hash',
       );
+      expect(userService.incrementTokenVersion).toHaveBeenCalledWith('user-1');
     });
   });
 
@@ -197,6 +201,7 @@ describe('AuthService', () => {
       });
 
       expect(result.accessToken).toBe('token');
+      expect(userService.incrementTokenVersion).toHaveBeenCalledWith('user-1');
       expect(smsService.verifyRegisterCode).toHaveBeenCalled();
     });
 
@@ -245,6 +250,7 @@ describe('AuthService', () => {
       });
 
       expect(result.accessToken).toBe('token');
+      expect(userService.incrementTokenVersion).toHaveBeenCalledWith('user-1');
     });
   });
 

@@ -28,6 +28,9 @@ export class User {
   @Column({ name: 'is_admin', type: 'boolean', default: false })
   isAdmin: boolean;
 
+  @Column({ name: 'token_version', type: 'int', default: 0 })
+  tokenVersion: number;
+
   @ManyToOne(() => User, { nullable: true })
   @JoinColumn({ name: 'referrer_id' })
   referrer: User | null;

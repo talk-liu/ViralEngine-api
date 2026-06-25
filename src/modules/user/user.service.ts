@@ -42,4 +42,13 @@ export class UserService {
   updatePassword(userId: string, passwordHash: string) {
     return this.userRepository.update(userId, { passwordHash });
   }
+
+  async incrementTokenVersion(userId: string): Promise<number> {
+    await this.userRepository.increment({ id: userId }, 'tokenVersion', 1);
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+      select: { tokenVersion: true },
+    });
+    return user!.tokenVersion;
+  }
 }
