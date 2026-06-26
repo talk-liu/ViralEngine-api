@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { randomUUID } from 'crypto';
 import { Repository } from 'typeorm';
+import { ListNameAcquisitionRecordsQueryDto } from '../dto/list-name-acquisition-records-query.dto';
 import { SaveNameAcquisitionRecordsDto } from '../dto/save-name-acquisition-records.dto';
 import { NameAcquisitionRecord } from '../entities/name-acquisition-record.entity';
 import {
@@ -17,6 +18,37 @@ export class NameAcquisitionService {
     @InjectRepository(NameAcquisitionRecord)
     private readonly recordRepository: Repository<NameAcquisitionRecord>,
   ) {}
+
+  async listRecords(userId: string, query: ListNameAcquisitionRecordsQueryDto) {
+    const page = query.page ?? 1;
+    const pageSize = query.pageSize ?? 20;
+
+    const qb = this.recordRepository
+      .createQueryBuilder('record')
+      .where('record.user_id = :userId', { userId });
+
+    if (query.region !== undefined) {
+      qb.andWhere('record.region = :region', { region: query.region.trim() });
+    }
+
+    const [items, total] = await qb
+      .orderBy('record.created_at', 'DESC')
+      .skip((page - 1) * pageSize)
+      .take(pageSize)
+      .getManyAndCount();
+
+    return {
+      items: items.map((record) => ({
+        id: record.id,
+        region: record.region,
+        url: record.url,
+        createdAt: record.createdAt.toISOString(),
+      })),
+      total,
+      page,
+      pageSize,
+    };
+  }
 
   async saveRecords(
     userId: string,

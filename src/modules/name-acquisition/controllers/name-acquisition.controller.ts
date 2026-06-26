@@ -1,7 +1,17 @@
-import { Body, Controller, HttpCode, HttpStatus, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiCreatedResponse,
+  ApiOkResponse,
   ApiOperation,
   ApiTags,
   ApiUnauthorizedResponse,
@@ -10,7 +20,11 @@ import { ApiErrorResponseDto } from '../../../common/dto/api-error.dto';
 import { CurrentUser } from '../../../auth/decorators/current-user.decorator';
 import type { AuthUser } from '../../../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
-import { SaveNameAcquisitionRecordsResponseDto } from '../dto/name-acquisition-response.dto';
+import { ListNameAcquisitionRecordsQueryDto } from '../dto/list-name-acquisition-records-query.dto';
+import {
+  NameAcquisitionRecordListResponseDto,
+  SaveNameAcquisitionRecordsResponseDto,
+} from '../dto/name-acquisition-response.dto';
 import { SaveNameAcquisitionRecordsDto } from '../dto/save-name-acquisition-records.dto';
 import { NameAcquisitionService } from '../services/name-acquisition.service';
 
@@ -23,6 +37,16 @@ export class NameAcquisitionController {
   constructor(
     private readonly nameAcquisitionService: NameAcquisitionService,
   ) {}
+
+  @Get('records')
+  @ApiOperation({ summary: '查询名称获客记录，可按地区筛选' })
+  @ApiOkResponse({ type: NameAcquisitionRecordListResponseDto })
+  listRecords(
+    @CurrentUser() user: AuthUser,
+    @Query() query: ListNameAcquisitionRecordsQueryDto,
+  ) {
+    return this.nameAcquisitionService.listRecords(user.id, query);
+  }
 
   @Post('records')
   @HttpCode(HttpStatus.CREATED)
