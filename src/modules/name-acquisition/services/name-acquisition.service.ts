@@ -32,7 +32,7 @@ export class NameAcquisitionService {
     }
 
     const [items, total] = await qb
-      .orderBy('record.created_at', 'DESC')
+      .orderBy('RAND()')
       .skip((page - 1) * pageSize)
       .take(pageSize)
       .getManyAndCount();
@@ -82,5 +82,10 @@ export class NameAcquisitionService {
     }
 
     return { savedCount: records.length };
+  }
+
+  async clearRecords(userId: string): Promise<{ deletedCount: number }> {
+    const result = await this.recordRepository.delete({ userId });
+    return { deletedCount: result.affected ?? 0 };
   }
 }

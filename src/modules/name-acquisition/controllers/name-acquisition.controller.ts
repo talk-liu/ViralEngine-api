@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   HttpStatus,
@@ -22,6 +23,7 @@ import type { AuthUser } from '../../../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../../../auth/guards/jwt-auth.guard';
 import { ListNameAcquisitionRecordsQueryDto } from '../dto/list-name-acquisition-records-query.dto';
 import {
+  ClearNameAcquisitionRecordsResponseDto,
   NameAcquisitionRecordListResponseDto,
   SaveNameAcquisitionRecordsResponseDto,
 } from '../dto/name-acquisition-response.dto';
@@ -39,7 +41,7 @@ export class NameAcquisitionController {
   ) {}
 
   @Get('records')
-  @ApiOperation({ summary: '查询名称获客记录，可按地区筛选' })
+  @ApiOperation({ summary: '随机查询名称获客记录，可按地区筛选' })
   @ApiOkResponse({ type: NameAcquisitionRecordListResponseDto })
   listRecords(
     @CurrentUser() user: AuthUser,
@@ -57,5 +59,12 @@ export class NameAcquisitionController {
     @Body() dto: SaveNameAcquisitionRecordsDto,
   ) {
     return this.nameAcquisitionService.saveRecords(user.id, dto);
+  }
+
+  @Delete('records')
+  @ApiOperation({ summary: '清空当前账号的名称获客记录' })
+  @ApiOkResponse({ type: ClearNameAcquisitionRecordsResponseDto })
+  clearRecords(@CurrentUser() user: AuthUser) {
+    return this.nameAcquisitionService.clearRecords(user.id);
   }
 }

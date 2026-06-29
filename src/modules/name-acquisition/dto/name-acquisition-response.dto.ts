@@ -5,6 +5,11 @@ export class SaveNameAcquisitionRecordsResponseDto {
   savedCount: number;
 }
 
+export class ClearNameAcquisitionRecordsResponseDto {
+  @ApiProperty({ example: 10 })
+  deletedCount: number;
+}
+
 export class NameAcquisitionRecordDto {
   @ApiProperty()
   id: string;
