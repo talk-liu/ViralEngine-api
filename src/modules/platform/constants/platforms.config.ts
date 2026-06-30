@@ -16,6 +16,13 @@ export const PLATFORM_REGISTRY: PlatformMeta[] = [
     description: '字节跳动 · 短视频',
     enabled: true,
   },
+  {
+    id: PlatformId.BOSS,
+    name: 'BOSS直聘',
+    icon: 'boss',
+    description: '招聘 · 职位采集与简历投递',
+    enabled: true,
+  },
   // {
   //   id: PlatformId.KUAISHOU,
   //   name: '快手',

@@ -118,6 +118,25 @@ describe('PlatformService', () => {
       expect(result.platformId).toBe(PlatformId.DOUYIN);
       expect(result.status).toBe(BindStatus.BOUND);
     });
+
+    it('应支持 BOSS 直聘手动创建', async () => {
+      accountRepository.create.mockImplementation((data) => ({
+        id: 'acc-boss-1',
+        createdAt: new Date('2026-06-12T08:00:00.000Z'),
+        ...data,
+      }));
+      accountRepository.save.mockImplementation(async (account) => account);
+
+      const result = await service.createManualAccount(
+        userId,
+        PlatformId.BOSS,
+        '招聘主号',
+      );
+
+      expect(result.platformId).toBe(PlatformId.BOSS);
+      expect(result.platformName).toBe('BOSS直聘');
+      expect(result.nickname).toBe('招聘主号');
+    });
   });
 
   describe('startBind', () => {

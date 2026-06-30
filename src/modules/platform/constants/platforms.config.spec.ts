@@ -13,7 +13,7 @@ describe('platforms.config', () => {
   });
 
   it('getPlatformName 应返回平台中文名', () => {
-    expect(getPlatformName(PlatformId.KUAISHOU)).toBe('快手');
+    expect(getPlatformName(PlatformId.BOSS)).toBe('BOSS直聘');
   });
 
   it('getPlatformName 对未知平台应回退为 platformId', () => {

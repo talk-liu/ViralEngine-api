@@ -18,7 +18,7 @@ import { PlatformAccount } from '../entities/platform-account.entity';
 import { PlatformToken } from '../entities/platform-token.entity';
 import { BindSessionStatus } from '../enums/bind-session-status.enum';
 import { BindStatus } from '../enums/bind-status.enum';
-import { PlatformId } from '../enums/platform-id.enum';
+import { OAUTH_PLATFORMS, PlatformId } from '../enums/platform-id.enum';
 import { EncryptionService } from './encryption.service';
 import { OAuthProviderRegistry } from './oauth-provider.registry';
 import {
@@ -142,6 +142,9 @@ export class PlatformService {
     const platform = PLATFORM_REGISTRY.find((p) => p.id === platformId);
     if (!platform?.enabled) {
       throw new BadRequestException('该平台暂未开放绑定');
+    }
+    if (!OAUTH_PLATFORMS.has(platformId)) {
+      throw new BadRequestException('该平台仅支持手动添加账号');
     }
 
     const provider = this.oauthRegistry.getProvider(platformId);
