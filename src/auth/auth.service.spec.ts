@@ -1,6 +1,5 @@
 import {
   BadRequestException,
-  ConflictException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -25,21 +24,12 @@ describe('AuthService', () => {
       | 'existsByPhone'
       | 'findByPhone'
       | 'findById'
-      | 'findByReferralCode'
-      | 'existsByReferralCode'
-      | 'create'
       | 'updatePassword'
       | 'incrementTokenVersion'
     >
   >;
   let smsService: jest.Mocked<
-    Pick<
-      SmsService,
-      | 'sendRegisterCode'
-      | 'verifyRegisterCode'
-      | 'sendResetPasswordCode'
-      | 'verifyResetPasswordCode'
-    >
+    Pick<SmsService, 'sendResetPasswordCode' | 'verifyResetPasswordCode'>
   >;
   let captchaService: jest.Mocked<Pick<CaptchaService, 'generate' | 'verify'>>;
   let jwtService: jest.Mocked<Pick<JwtService, 'sign'>>;
@@ -56,10 +46,11 @@ describe('AuthService', () => {
     referrerId: null,
     isAdmin: false,
     tokenVersion: 0,
+    membershipExpiresAt: new Date('2099-01-01T00:00:00.000Z'),
+    isDisabled: false,
     createdAt: new Date(),
     updatedAt: new Date(),
     referrer: null,
-    referrals: [],
   };
 
   beforeEach(async () => {
@@ -67,15 +58,10 @@ describe('AuthService', () => {
       existsByPhone: jest.fn(),
       findByPhone: jest.fn(),
       findById: jest.fn(),
-      findByReferralCode: jest.fn(),
-      existsByReferralCode: jest.fn(),
-      create: jest.fn(),
       updatePassword: jest.fn(),
       incrementTokenVersion: jest.fn().mockResolvedValue(1),
     };
     smsService = {
-      sendRegisterCode: jest.fn().mockResolvedValue('123456'),
-      verifyRegisterCode: jest.fn(),
       sendResetPasswordCode: jest.fn().mockResolvedValue('654321'),
       verifyResetPasswordCode: jest.fn(),
     };
@@ -117,21 +103,6 @@ describe('AuthService', () => {
 
     service = module.get(AuthService);
     jest.clearAllMocks();
-  });
-
-  describe('sendRegisterSmsCode', () => {
-    it('已注册手机号应抛出 ConflictException', async () => {
-      userService.existsByPhone.mockResolvedValue(true);
-      await expect(service.sendRegisterSmsCode('13800000000')).rejects.toThrow(
-        ConflictException,
-      );
-    });
-
-    it('开发环境应返回 debugCode', async () => {
-      userService.existsByPhone.mockResolvedValue(false);
-      const result = await service.sendRegisterSmsCode('13800000000');
-      expect(result.debugCode).toBe('123456');
-    });
   });
 
   describe('sendForgotPasswordSmsCode', () => {
@@ -186,41 +157,6 @@ describe('AuthService', () => {
     });
   });
 
-  describe('register', () => {
-    it('应完成注册并返回 token', async () => {
-      userService.existsByPhone.mockResolvedValue(false);
-      userService.existsByReferralCode.mockResolvedValue(false);
-      userService.create.mockResolvedValue(user);
-      (argon2.hash as jest.Mock).mockResolvedValue('hashed');
-
-      const result = await service.register({
-        phone: '13800000000',
-        password: 'Pass1234!',
-        confirmPassword: 'Pass1234!',
-        smsCode: '123456',
-      });
-
-      expect(result.accessToken).toBe('token');
-      expect(userService.incrementTokenVersion).toHaveBeenCalledWith('user-1');
-      expect(smsService.verifyRegisterCode).toHaveBeenCalled();
-    });
-
-    it('无效推荐码应抛出 ConflictException', async () => {
-      userService.existsByPhone.mockResolvedValue(false);
-      userService.findByReferralCode.mockResolvedValue(null);
-
-      await expect(
-        service.register({
-          phone: '13800000000',
-          password: 'Pass1234!',
-          confirmPassword: 'Pass1234!',
-          smsCode: '123456',
-          referralCode: 'BADCODE',
-        }),
-      ).rejects.toThrow(ConflictException);
-    });
-  });
-
   describe('login', () => {
     it('密码错误应抛出 UnauthorizedException', async () => {
       captchaService.verify.mockResolvedValue(undefined);
@@ -235,6 +171,39 @@ describe('AuthService', () => {
           captchaCode: 'abcd',
         }),
       ).rejects.toThrow(UnauthorizedException);
+    });
+
+    it('账号已禁用应抛出 UnauthorizedException', async () => {
+      captchaService.verify.mockResolvedValue(undefined);
+      userService.findByPhone.mockResolvedValue({ ...user, isDisabled: true });
+      (argon2.verify as jest.Mock).mockResolvedValue(true);
+
+      await expect(
+        service.login({
+          phone: '13800000000',
+          password: 'Pass1234!',
+          captchaId: 'c1',
+          captchaCode: 'abcd',
+        }),
+      ).rejects.toThrow('账号已禁用');
+    });
+
+    it('会员已到期应抛出 UnauthorizedException', async () => {
+      captchaService.verify.mockResolvedValue(undefined);
+      userService.findByPhone.mockResolvedValue({
+        ...user,
+        membershipExpiresAt: new Date('2020-01-01T00:00:00.000Z'),
+      });
+      (argon2.verify as jest.Mock).mockResolvedValue(true);
+
+      await expect(
+        service.login({
+          phone: '13800000000',
+          password: 'Pass1234!',
+          captchaId: 'c1',
+          captchaCode: 'abcd',
+        }),
+      ).rejects.toThrow('会员已到期，请联系管理员续费');
     });
 
     it('登录成功应返回 token', async () => {
@@ -276,6 +245,7 @@ describe('AuthService', () => {
       expect(result.boundAccountCount).toBe(5);
       expect(result.publishResultCount).toBe(48);
       expect(result.id).toBe(user.id);
+      expect(result.isExpired).toBe(false);
     });
   });
 });

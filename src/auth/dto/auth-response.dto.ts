@@ -43,6 +43,16 @@ export class CaptchaResponseDto {
 }
 
 export class UserProfileDto extends UserBriefDto {
+  @ApiProperty({
+    example: '2026-12-31T23:59:59.000Z',
+    nullable: true,
+    description: '会员到期时间，管理员为 null 表示永不过期',
+  })
+  membershipExpiresAt: string | null;
+
+  @ApiProperty({ example: false, description: '会员是否已到期' })
+  isExpired: boolean;
+
   @ApiProperty({ example: '2026-05-23T08:00:00.000Z' })
   createdAt: Date;
 

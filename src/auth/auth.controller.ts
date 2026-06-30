@@ -10,8 +10,6 @@ import {
 import {
   ApiBearerAuth,
   ApiBadRequestResponse,
-  ApiConflictResponse,
-  ApiCreatedResponse,
   ApiOkResponse,
   ApiOperation,
   ApiTags,
@@ -26,7 +24,6 @@ import {
   UserProfileDto,
 } from './dto/auth-response.dto';
 import { LoginDto } from './dto/login.dto';
-import { RegisterDto } from './dto/register.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import {
   SendSmsCodeDto,
@@ -40,16 +37,6 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
-
-  @Post('sms-code')
-  @HttpCode(HttpStatus.OK)
-  @Throttle({ default: { limit: 5, ttl: 60000 } })
-  @ApiOperation({ summary: '发送注册短信验证码' })
-  @ApiOkResponse({ type: SendSmsCodeResponseDto })
-  @ApiConflictResponse({ type: ApiErrorResponseDto, description: '手机号已注册' })
-  sendSmsCode(@Body() dto: SendSmsCodeDto) {
-    return this.authService.sendRegisterSmsCode(dto.phone);
-  }
 
   @Post('forgot-password/sms-code')
   @HttpCode(HttpStatus.OK)
@@ -71,14 +58,6 @@ export class AuthController {
   @ApiBadRequestResponse({ type: ApiErrorResponseDto })
   resetPassword(@Body() dto: ResetPasswordDto) {
     return this.authService.resetPassword(dto);
-  }
-
-  @Post('register')
-  @ApiOperation({ summary: '用户注册' })
-  @ApiCreatedResponse({ type: AuthTokenResponseDto })
-  @ApiConflictResponse({ type: ApiErrorResponseDto })
-  register(@Body() dto: RegisterDto) {
-    return this.authService.register(dto);
   }
 
   @Get('captcha')

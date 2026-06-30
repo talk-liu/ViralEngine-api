@@ -31,6 +31,12 @@ export class User {
   @Column({ name: 'token_version', type: 'int', default: 0 })
   tokenVersion: number;
 
+  @Column({ name: 'membership_expires_at', type: 'datetime', nullable: true })
+  membershipExpiresAt: Date | null;
+
+  @Column({ name: 'is_disabled', type: 'boolean', default: false })
+  isDisabled: boolean;
+
   @ManyToOne(() => User, { nullable: true })
   @JoinColumn({ name: 'referrer_id' })
   referrer: User | null;
