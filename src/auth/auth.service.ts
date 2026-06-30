@@ -10,6 +10,7 @@ import { PlatformService } from '../modules/platform/services/platform.service';
 import { PublishResultService } from '../modules/publish-result/services/publish-result.service';
 import { User } from '../modules/user/entities/user.entity';
 import { isMembershipExpired } from '../modules/user/utils/membership.util';
+import { assertUserCanAccess } from '../modules/user/utils/user-access.util';
 import { UserService } from '../modules/user/user.service';
 import { LoginDto } from './dto/login.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
@@ -74,7 +75,7 @@ export class AuthService {
       throw new UnauthorizedException('手机号或密码错误');
     }
 
-    this.assertUserCanLogin(user);
+    assertUserCanAccess(user);
 
     return await this.buildAuthResponse(user);
   }
@@ -101,15 +102,6 @@ export class AuthService {
       boundAccountCount,
       publishResultCount,
     };
-  }
-
-  private assertUserCanLogin(user: User) {
-    if (user.isDisabled) {
-      throw new UnauthorizedException('账号已禁用');
-    }
-    if (isMembershipExpired(user)) {
-      throw new UnauthorizedException('会员已到期，请联系管理员续费');
-    }
   }
 
   private async buildAuthResponse(user: User) {

@@ -2,6 +2,7 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
+import { assertUserCanAccess } from '../../modules/user/utils/user-access.util';
 import { UserService } from '../../modules/user/user.service';
 import { AuthUser } from '../decorators/current-user.decorator';
 
@@ -34,6 +35,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     if (tokenVersion !== user.tokenVersion) {
       throw new UnauthorizedException('账号已在其他设备登录');
     }
+
+    assertUserCanAccess(user);
 
     return { id: user.id, phone: user.phone, isAdmin: user.isAdmin };
   }

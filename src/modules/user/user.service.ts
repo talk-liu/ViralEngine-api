@@ -93,12 +93,13 @@ export class UserService {
     }
 
     if (query.expired === true) {
-      qb.andWhere('user.isAdmin = :isAdmin', { isAdmin: false })
-        .andWhere('user.membershipExpiresAt IS NOT NULL')
-        .andWhere('user.membershipExpiresAt <= :now', { now });
+      qb.andWhere('user.isAdmin = :isAdmin', { isAdmin: false }).andWhere(
+        '(user.membershipExpiresAt IS NULL OR user.membershipExpiresAt <= :now)',
+        { now },
+      );
     } else if (query.expired === false) {
       qb.andWhere(
-        '(user.isAdmin = :isAdmin OR user.membershipExpiresAt IS NULL OR user.membershipExpiresAt > :now)',
+        'user.isAdmin = :isAdmin OR (user.membershipExpiresAt IS NOT NULL AND user.membershipExpiresAt > :now)',
         { isAdmin: true, now },
       );
     }

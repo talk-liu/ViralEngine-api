@@ -31,7 +31,9 @@ describe('JwtStrategy', () => {
       id: 'user-1',
       phone: '13800000000',
       isAdmin: false,
+      isDisabled: false,
       tokenVersion: 1,
+      membershipExpiresAt: new Date('2099-01-01T00:00:00.000Z'),
     } as User);
 
     await expect(
@@ -62,5 +64,50 @@ describe('JwtStrategy', () => {
     await expect(
       strategy.validate({ sub: 'missing', phone: '13800000000' }),
     ).rejects.toThrow(UnauthorizedException);
+  });
+
+  it('账号已禁用时应抛出 UnauthorizedException', async () => {
+    userService.findById.mockResolvedValue({
+      id: 'user-1',
+      phone: '13800000000',
+      isAdmin: false,
+      isDisabled: true,
+      tokenVersion: 1,
+      membershipExpiresAt: new Date('2099-01-01T00:00:00.000Z'),
+    } as User);
+
+    await expect(
+      strategy.validate({ sub: 'user-1', phone: '13800000000', tv: 1 }),
+    ).rejects.toThrow('账号已禁用');
+  });
+
+  it('会员已到期时应抛出 UnauthorizedException', async () => {
+    userService.findById.mockResolvedValue({
+      id: 'user-1',
+      phone: '13800000000',
+      isAdmin: false,
+      isDisabled: false,
+      tokenVersion: 1,
+      membershipExpiresAt: new Date('2020-01-01T00:00:00.000Z'),
+    } as User);
+
+    await expect(
+      strategy.validate({ sub: 'user-1', phone: '13800000000', tv: 1 }),
+    ).rejects.toThrow('会员已到期，请联系管理员续费');
+  });
+
+  it('未设置到期时间时应抛出 UnauthorizedException', async () => {
+    userService.findById.mockResolvedValue({
+      id: 'user-1',
+      phone: '13800000000',
+      isAdmin: false,
+      isDisabled: false,
+      tokenVersion: 1,
+      membershipExpiresAt: null,
+    } as User);
+
+    await expect(
+      strategy.validate({ sub: 'user-1', phone: '13800000000', tv: 1 }),
+    ).rejects.toThrow('会员已到期，请联系管理员续费');
   });
 });
