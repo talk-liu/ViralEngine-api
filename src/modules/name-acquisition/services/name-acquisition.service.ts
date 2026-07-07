@@ -32,7 +32,7 @@ export class NameAcquisitionService {
     }
 
     const [items, total] = await qb
-      .orderBy('RAND()')
+      .orderBy('record.created_at', 'DESC')
       .skip((page - 1) * pageSize)
       .take(pageSize)
       .getManyAndCount();

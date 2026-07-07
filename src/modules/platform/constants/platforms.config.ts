@@ -23,13 +23,20 @@ export const PLATFORM_REGISTRY: PlatformMeta[] = [
     description: '招聘 · 职位采集与简历投递',
     enabled: true,
   },
-  // {
-  //   id: PlatformId.KUAISHOU,
-  //   name: '快手',
-  //   icon: 'kuaishou',
-  //   description: '快手 · 短视频',
-  //   enabled: true,
-  // },
+  {
+    id: PlatformId.TAOBAO,
+    name: '淘宝',
+    icon: 'taobao',
+    description: '阿里巴巴 · 电商',
+    enabled: true,
+  },
+  {
+    id: PlatformId.KUAISHOU,
+    name: '快手',
+    icon: 'kuaishou',
+    description: '快手 · 短视频',
+    enabled: true,
+  },
   // {
   //   id: PlatformId.BILIBILI,
   //   name: '哔哩哔哩',

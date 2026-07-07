@@ -41,7 +41,7 @@ export class NameAcquisitionController {
   ) {}
 
   @Get('records')
-  @ApiOperation({ summary: '随机查询名称获客记录，可按地区筛选' })
+  @ApiOperation({ summary: '查询名称获客记录，可按地区筛选' })
   @ApiOkResponse({ type: NameAcquisitionRecordListResponseDto })
   listRecords(
     @CurrentUser() user: AuthUser,

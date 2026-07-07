@@ -137,6 +137,25 @@ describe('PlatformService', () => {
       expect(result.platformName).toBe('BOSS直聘');
       expect(result.nickname).toBe('招聘主号');
     });
+
+    it('应支持快手手动创建', async () => {
+      accountRepository.create.mockImplementation((data) => ({
+        id: 'acc-kuaishou-1',
+        createdAt: new Date('2026-06-12T08:00:00.000Z'),
+        ...data,
+      }));
+      accountRepository.save.mockImplementation(async (account) => account);
+
+      const result = await service.createManualAccount(
+        userId,
+        PlatformId.KUAISHOU,
+        '快手主号',
+      );
+
+      expect(result.platformId).toBe(PlatformId.KUAISHOU);
+      expect(result.platformName).toBe('快手');
+      expect(result.nickname).toBe('快手主号');
+    });
   });
 
   describe('startBind', () => {
