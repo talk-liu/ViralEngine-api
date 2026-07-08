@@ -118,6 +118,24 @@ describe('PlatformService', () => {
       expect(result.platformId).toBe(PlatformId.DOUYIN);
       expect(result.status).toBe(BindStatus.BOUND);
     });
+
+    it('应支持视频号手动添加', async () => {
+      accountRepository.create.mockImplementation((data) => ({
+        id: 'acc-weixin-1',
+        createdAt: new Date('2026-06-12T08:00:00.000Z'),
+        ...data,
+      }));
+      accountRepository.save.mockImplementation(async (account) => account);
+
+      const result = await service.createManualAccount(
+        userId,
+        PlatformId.WEIXIN_CHANNELS,
+        '我的视频号',
+      );
+
+      expect(result.platformId).toBe(PlatformId.WEIXIN_CHANNELS);
+      expect(result.nickname).toBe('我的视频号');
+    });
   });
 
   describe('startBind', () => {

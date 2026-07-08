@@ -37,13 +37,13 @@ export const PLATFORM_REGISTRY: PlatformMeta[] = [
   //   description: '生活方式社区',
   //   enabled: false,
   // },
-  // {
-  //   id: PlatformId.WEIXIN_CHANNELS,
-  //   name: '视频号',
-  //   icon: 'weixin_channels',
-  //   description: '微信 · 视频号',
-  //   enabled: false,
-  // },
+  {
+    id: PlatformId.WEIXIN_CHANNELS,
+    name: '视频号',
+    icon: 'weixin',
+    description: '微信 · 视频号',
+    enabled: true,
+  },
   // {
   //   id: PlatformId.TIKTOK,
   //   name: 'TikTok',
