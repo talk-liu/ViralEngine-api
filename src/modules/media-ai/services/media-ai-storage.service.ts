@@ -100,6 +100,25 @@ export class MediaAiStorageService implements OnModuleInit {
     }
   }
 
+  async pruneEmptyJobInputDirectory(
+    userId: string,
+    jobId: string,
+  ): Promise<void> {
+    const inputDir = this.toAbsolutePath(
+      path.posix.join(userId, 'media-jobs', jobId, 'input'),
+    );
+    try {
+      const entries = await fs.readdir(inputDir);
+      if (entries.length === 0) {
+        await fs.rmdir(inputDir);
+      }
+    } catch (err: unknown) {
+      if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
+        throw err;
+      }
+    }
+  }
+
   buildJobDirectory(userId: string, jobId: string): string {
     return path.posix.join(userId, 'media-jobs', jobId);
   }

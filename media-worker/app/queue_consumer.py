@@ -35,6 +35,12 @@ class QueueConsumer:
 
     async def start(self) -> None:
         self._running = True
+        try:
+            recovered = await self.callback.recover_stale_jobs()
+            if recovered:
+                logger.info("Recovered %d stale processing job(s)", recovered)
+        except Exception:
+            logger.warning("Failed to recover stale jobs", exc_info=True)
         logger.info(
             "Queue consumer started, waiting for jobs on %s",
             ", ".join(self.queue_keys),

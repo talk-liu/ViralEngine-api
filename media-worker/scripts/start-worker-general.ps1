@@ -16,4 +16,8 @@ if (-not $env:WORKER_QUEUE_KEYS) {
 Write-Host "Worker queues: $env:WORKER_QUEUE_KEYS"
 
 Set-Location $Root
-& $Python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+if ($env:WORKER_RELOAD -eq "1") {
+    & $Python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+} else {
+    & $Python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+}

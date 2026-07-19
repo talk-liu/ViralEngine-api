@@ -5,11 +5,12 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as path from 'path';
-import { FindOptionsWhere, Repository } from 'typeorm';
+import { FindOptionsWhere, LessThan, Repository } from 'typeorm';
 import { buildUniqueFileName } from '../../publish-draft/utils/upload-filename.util';
 import { CreateFlashHeadJobDto } from '../dto/create-flashhead-job.dto';
 import { CreateLatentSyncJobDto } from '../dto/create-latentsync-job.dto';
 import { CreateLiveSliceJobDto } from '../dto/create-live-slice-job.dto';
+import { CreateSubtitleFromUrlJobDto } from '../dto/create-subtitle-from-url-job.dto';
 import { CreateSubtitleJobDto } from '../dto/create-subtitle-job.dto';
 import { CreateTtsJobDto } from '../dto/create-tts-job.dto';
 import { CreateWatermarkJobDto } from '../dto/create-watermark-job.dto';
@@ -20,6 +21,7 @@ import type { MediaJobResponseDto } from '../dto/media-job-response.dto';
 import { MediaJob } from '../entities/media-job.entity';
 import { MediaJobStatus } from '../enums/media-job-status.enum';
 import { MediaJobType } from '../enums/media-job-type.enum';
+import { assertPlatformVideoUrlMatches } from '../utils/platform-video-url.util';
 import { toMediaJobResponse } from '../utils/media-job.mapper';
 import { MediaAiStorageService } from './media-ai-storage.service';
 import { MediaJobQueueService } from './media-job-queue.service';
@@ -189,6 +191,54 @@ export class MediaAiService {
       },
       outputFileName: `subtitles.${format}`,
     });
+  }
+
+  async createSubtitleFromUrlJob(
+    userId: string,
+    dto: CreateSubtitleFromUrlJobDto,
+  ): Promise<MediaJobResponseDto> {
+    const parsed = assertPlatformVideoUrlMatches(dto.url, dto.platformId);
+    const format = dto.format ?? 'srt';
+
+    const job = await this.jobRepository.save(
+      this.jobRepository.create({
+        userId,
+        type: MediaJobType.SUBTITLE,
+        status: MediaJobStatus.PENDING,
+        params: {
+          downloadUrl: parsed.downloadUrl,
+          platformId: parsed.platformId,
+          language: dto.language,
+          format,
+        },
+      }),
+    );
+
+    const inputKey = this.storageService.buildInputKey(
+      userId,
+      job.id,
+      'source.mp4',
+    );
+    const outputKey = this.storageService.buildOutputKey(
+      userId,
+      job.id,
+      `subtitles.${format}`,
+    );
+
+    job.inputKey = inputKey;
+    job.outputKey = outputKey;
+    await this.jobRepository.save(job);
+
+    await this.queueService.enqueue({
+      jobId: job.id,
+      userId,
+      type: MediaJobType.SUBTITLE,
+      inputKey,
+      outputKey,
+      params: job.params as Record<string, unknown>,
+    });
+
+    return toMediaJobResponse(job, (key) => this.storageService.getSignedUrl(key));
   }
 
   async createLiveSliceJob(
@@ -495,6 +545,38 @@ export class MediaAiService {
     });
   }
 
+  async recoverStaleProcessingJobs(
+    staleAfterMs = 3 * 60 * 1000,
+  ): Promise<{ recovered: number }> {
+    const cutoff = new Date(Date.now() - staleAfterMs);
+    const staleJobs = await this.jobRepository.find({
+      where: {
+        status: MediaJobStatus.PROCESSING,
+        startedAt: LessThan(cutoff),
+      },
+    });
+
+    const recoverable = staleJobs.filter((job) => job.inputKey && job.outputKey);
+    await Promise.all(
+      recoverable.map(async (job) => {
+        await this.jobRepository.update(job.id, {
+          status: MediaJobStatus.PENDING,
+          progress: 0,
+        });
+        await this.queueService.enqueue({
+          jobId: job.id,
+          userId: job.userId,
+          type: job.type,
+          inputKey: job.inputKey!,
+          outputKey: job.outputKey!,
+          params: (job.params ?? {}) as Record<string, unknown>,
+        });
+      }),
+    );
+
+    return { recovered: recoverable.length };
+  }
+
   async completeJob(
     jobId: string,
     payload: {
@@ -625,6 +707,7 @@ export class MediaAiService {
       await this.storageService.deleteFile(key);
     }
     if (job.inputKey) {
+      await this.storageService.pruneEmptyJobInputDirectory(job.userId, job.id);
       await this.jobRepository.update(job.id, { inputKey: null });
     }
   }

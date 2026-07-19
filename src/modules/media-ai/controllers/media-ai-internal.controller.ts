@@ -40,6 +40,13 @@ export class MediaAiInternalController {
     return this.mediaAiService.updateProgress(jobId, dto.progress);
   }
 
+  @Post('jobs/recover-stale')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Worker：重新入队长时间未完成的 processing 任务' })
+  recoverStaleJobs() {
+    return this.mediaAiService.recoverStaleProcessingJobs();
+  }
+
   @Post('jobs/:jobId/complete')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Worker：上报任务完成或失败' })

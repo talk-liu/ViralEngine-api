@@ -67,6 +67,13 @@ class Settings(BaseSettings):
     funasr_device: str = Field(default="cpu", alias="FUNASR_DEVICE")
     funasr_batch_size_s: int = Field(default=300, alias="FUNASR_BATCH_SIZE_S")
 
+    # yt-dlp 平台视频下载（小红书/视频号/B站/TikTok 等；抖音/快手已内置解析器）
+    ytdlp_cookies_file: str | None = Field(default=None, alias="YTDLP_COOKIES_FILE")
+    ytdlp_cookies_from_browser: str | None = Field(
+        default=None,
+        alias="YTDLP_COOKIES_FROM_BROWSER",
+    )
+
     # LLM 高光识别（OpenAI 兼容接口，支持通义/DeepSeek 等）
     llm_api_base: str = Field(
         default="https://dashscope.aliyuncs.com/compatible-mode/v1",

@@ -39,6 +39,7 @@ import {
   GenerateVideoDetailsDto,
   GenerateVideoDetailsResponseDto,
 } from '../dto/generate-video-details.dto';
+import { CreateSubtitleFromUrlJobDto } from '../dto/create-subtitle-from-url-job.dto';
 import { CreateSubtitleJobDto } from '../dto/create-subtitle-job.dto';
 import { CreateTtsJobDto } from '../dto/create-tts-job.dto';
 import { CreateWatermarkJobDto } from '../dto/create-watermark-job.dto';
@@ -139,7 +140,7 @@ export class MediaAiController {
   @Post('jobs/subtitle')
   @UseInterceptors(FileInterceptor('file'))
   @ApiConsumes('multipart/form-data')
-  @ApiOperation({ summary: '创建视频字幕识别任务' })
+  @ApiOperation({ summary: '创建视频字幕识别任务（上传本地视频）' })
   @ApiCreatedResponse({ type: MediaJobResponseDto })
   createSubtitleJob(
     @CurrentUser() user: AuthUser,
@@ -147,6 +148,20 @@ export class MediaAiController {
     @Body() dto: CreateSubtitleJobDto,
   ) {
     return this.mediaAiService.createSubtitleJob(user.id, file, dto);
+  }
+
+  @Post('jobs/subtitle-from-url')
+  @ApiOperation({
+    summary: '创建视频字幕识别任务（平台分享链接）',
+    description:
+      '粘贴抖音、快手、小红书、视频号、B站、TikTok 等分享链接，Worker 自动下载视频并识别字幕。抖音/快手走内置解析，其他平台走 yt-dlp。',
+  })
+  @ApiCreatedResponse({ type: MediaJobResponseDto })
+  createSubtitleFromUrlJob(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: CreateSubtitleFromUrlJobDto,
+  ) {
+    return this.mediaAiService.createSubtitleFromUrlJob(user.id, dto);
   }
 
   @Post('jobs/live-slice')

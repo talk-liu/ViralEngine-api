@@ -1,6 +1,7 @@
 import logging
 import subprocess
 import tempfile
+from collections.abc import Callable
 from pathlib import Path
 
 from faster_whisper import WhisperModel, download_model
@@ -9,7 +10,12 @@ from app.config import settings
 
 logger = logging.getLogger(__name__)
 
+OnProgress = Callable[[int], None] | None
+
 _model: WhisperModel | None = None
+
+_TRANSCRIBE_START = 50
+_TRANSCRIBE_END = 95
 
 
 def _resolve_model_source() -> str:
@@ -134,22 +140,44 @@ def extract_subtitles(
     *,
     language: str | None = None,
     output_format: str = "srt",
+    on_progress: OnProgress = None,
 ) -> None:
     if not input_path.exists():
         raise FileNotFoundError(f"输入视频不存在: {input_path}")
 
+    if on_progress:
+        on_progress(42)
+
     with tempfile.TemporaryDirectory(prefix="subtitle-") as tmp_dir:
         audio_path = Path(tmp_dir) / "audio.wav"
         _extract_audio(input_path, audio_path)
+        if on_progress:
+            on_progress(48)
 
         model = _get_model()
+        if on_progress:
+            on_progress(_TRANSCRIBE_START)
+
         segments_iter, info = model.transcribe(
             str(audio_path),
             language=language or None,
             vad_filter=True,
             beam_size=5,
         )
-        segments = list(segments_iter)
+        duration = float(getattr(info, "duration", 0) or 0)
+        segments = []
+        last_reported = _TRANSCRIBE_START
+        span = _TRANSCRIBE_END - _TRANSCRIBE_START
+        for segment in segments_iter:
+            segments.append(segment)
+            if on_progress and duration > 0:
+                pct = min(
+                    _TRANSCRIBE_END,
+                    _TRANSCRIBE_START + int((segment.end / duration) * span),
+                )
+                if pct >= last_reported + 2:
+                    on_progress(pct)
+                    last_reported = pct
 
         detected = info.language if info else "unknown"
         logger.info(

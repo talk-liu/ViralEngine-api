@@ -21,4 +21,8 @@ Write-Host "Worker queues: $env:WORKER_QUEUE_KEYS"
 Write-Host "LatentSync server: $env:LATENTSYNC_SERVER_URL"
 
 Set-Location $Root
-& $Python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8001
+if ($env:WORKER_RELOAD -eq "1") {
+    & $Python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8001
+} else {
+    & $Python -m uvicorn app.main:app --host 127.0.0.1 --port 8001
+}

@@ -18,6 +18,8 @@
 | 识别引擎 | 服务端 Whisper（`faster-whisper`） |
 | 语言 | 可指定语言代码（如 `zh`、`en`）；**留空则自动检测** |
 | 输出格式 | `srt`（默认）或 `vtt` |
+| 输入方式 | **本地上传视频**，或 **粘贴平台分享链接**（抖音/快手/小红书/视频号/B站/TikTok） |
+| 输入视频保留 | 字幕识别完成后**自动删除**原视频，仅保留字幕产出 |
 | 处理方式 | 异步任务：创建后立即返回任务 ID，需轮询状态 |
 | 用户隔离 | 任务归属当前登录用户，**禁止**客户端传 `userId` |
 
@@ -180,6 +182,43 @@ curl -X POST "http://localhost:3000/api/media-ai/jobs/subtitle" \
   -F "format=srt"
 ```
 
+#### 3.1.1 通过平台分享链接创建（无需上传文件）
+
+**`POST /media-ai/jobs/subtitle-from-url`**
+
+`Content-Type: application/json`
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `url` | string | 是 | 平台视频分享链接（支持短链） |
+| `platformId` | string | 否 | 可选校验：`douyin` / `kuaishou` / `xiaohongshu` / `weixin_channels` / `bilibili` / `tiktok` |
+| `language` | string | 否 | 语言代码，留空自动检测 |
+| `format` | string | 否 | `srt` \| `vtt`，默认 `srt` |
+
+**当前支持的平台**
+
+| platformId | 平台 | 链接示例 |
+|------------|------|----------|
+| `douyin` | 抖音 | `https://www.douyin.com/jingxuan?modal_id=...`、`https://v.douyin.com/...` |
+| `kuaishou` | 快手 | `https://www.kuaishou.com/short-video/...` |
+| `xiaohongshu` | 小红书 | `https://www.xiaohongshu.com/explore/...`、`https://xhslink.com/...` |
+| `weixin_channels` | 视频号 | `https://channels.weixin.qq.com/...` |
+| `bilibili` | B站 | `https://www.bilibili.com/video/BV...`、`https://b23.tv/...` |
+| `tiktok` | TikTok | `https://www.tiktok.com/@user/video/...` |
+
+Worker 使用平台解析器下载视频（**抖音、快手走移动端 SSR，无需 Cookie/登录**），再走与上传文件相同的 Whisper 字幕识别流程。其他平台默认使用 yt-dlp。
+
+```bash
+curl -X POST "http://localhost:3000/api/media-ai/jobs/subtitle-from-url" \
+  -H "Authorization: Bearer <accessToken>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://www.douyin.com/jingxuan?modal_id=7635649097567539306",
+    "language": "zh",
+    "format": "srt"
+  }'
+```
+
 ---
 
 ### 3.2 查询任务状态
@@ -261,7 +300,7 @@ pending → processing → completed
 | `completed` | 识别成功 | 使用 `outputUrl` 下载字幕 |
 | `failed` | 识别失败 | 展示 `errorMessage`，允许用户重试 |
 
-> 当前实现中，进入 `processing` 后 `progress` 固定为 `10`，完成后为 `100`，**无中间进度**。前端可按状态展示 indeterminate 进度条。
+> `processing` 期间 Worker 会上报中间进度：下载约 12–35，Whisper 转写约 42–95，完成后为 100。长视频转写可能耗时较久，建议前端展示 determinate 进度条。
 
 ---
 

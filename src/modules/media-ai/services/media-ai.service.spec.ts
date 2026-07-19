@@ -155,6 +155,34 @@ describe('MediaAiService', () => {
     });
   });
 
+  describe('createSubtitleFromUrlJob', () => {
+    it('应创建链接字幕任务并入队', async () => {
+      const result = await service.createSubtitleFromUrlJob(userId, {
+        url: 'https://www.douyin.com/jingxuan?modal_id=7635649097567539306',
+      });
+
+      expect(result.type).toBe(MediaJobType.SUBTITLE);
+      expect(queueService.enqueue).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: MediaJobType.SUBTITLE,
+          params: expect.objectContaining({
+            downloadUrl: expect.stringContaining('douyin.com/video'),
+            platformId: 'douyin',
+          }),
+        }),
+      );
+      expect(storageService.saveFile).not.toHaveBeenCalled();
+    });
+
+    it('不支持的平台链接应抛出 BadRequestException', async () => {
+      await expect(
+        service.createSubtitleFromUrlJob(userId, {
+          url: 'https://www.youtube.com/watch?v=abc',
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+  });
+
   describe('removeJob', () => {
     it('应删除任务及存储目录', async () => {
       jobRepository.findOne.mockResolvedValue(job);

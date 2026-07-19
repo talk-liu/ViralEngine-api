@@ -51,3 +51,11 @@ class CallbackService:
                 json={"progress": progress},
             )
             response.raise_for_status()
+
+    async def recover_stale_jobs(self) -> int:
+        response = await self._client.post(
+            f"{self.base_url}/media-ai/internal/jobs/recover-stale",
+            headers=self.headers,
+        )
+        response.raise_for_status()
+        return int(response.json().get("recovered", 0))
