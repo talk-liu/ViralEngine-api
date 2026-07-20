@@ -134,6 +134,19 @@ def _write_vtt(segments: list, output_path: Path) -> None:
     output_path.write_text("\n".join(lines), encoding="utf-8")
 
 
+def _write_txt(segments: list, output_path: Path) -> None:
+    lines: list[str] = []
+    for segment in segments:
+        text = segment.text.strip()
+        if text:
+            lines.append(text)
+
+    output_path.write_text(
+        "\n".join(lines) + ("\n" if lines else ""),
+        encoding="utf-8",
+    )
+
+
 def extract_subtitles(
     input_path: Path,
     output_path: Path,
@@ -188,5 +201,7 @@ def extract_subtitles(
 
         if output_format == "vtt":
             _write_vtt(segments, output_path)
+        elif output_format == "txt":
+            _write_txt(segments, output_path)
         else:
             _write_srt(segments, output_path)

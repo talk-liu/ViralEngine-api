@@ -11,11 +11,11 @@ export class CreateSubtitleJobDto {
   language?: string;
 
   @ApiPropertyOptional({
-    description: '输出格式',
-    enum: ['srt', 'vtt'],
+    description: '输出格式（txt 为纯文本，不含时间轴）',
+    enum: ['srt', 'vtt', 'txt'],
     default: 'srt',
   })
   @IsOptional()
-  @IsIn(['srt', 'vtt'])
+  @IsIn(['srt', 'vtt', 'txt'])
   format?: string;
 }

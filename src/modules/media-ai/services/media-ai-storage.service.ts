@@ -282,6 +282,7 @@ export class MediaAiStorageService implements OnModuleInit {
       '.gif': 'image/gif',
       '.srt': 'application/x-subrip',
       '.vtt': 'text/vtt',
+      '.txt': 'text/plain; charset=utf-8',
       '.json': 'application/json',
       '.wav': 'audio/wav',
       '.mp3': 'audio/mpeg',
